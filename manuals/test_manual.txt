@@ -1,0 +1,6 @@
+This is a test manual file.
+It contains some text to verify the search functionality.
+Line 3 has the word 'important'.
+Line 4 is just filler.
+Reference: Page 10.
+End of file.

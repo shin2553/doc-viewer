@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Document Viewer</title>
+    <!-- PDF.js Viewer CSS - Critical for Text Layer Alignment -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
+    <!-- Highlight.js Theme (Atom One Dark) -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/tree_styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* PDF Viewer Dark Background */
+        #pdf-container {
+            background-color: #1e1e1e !important;
+            /* Dark background matching VS Code dark theme */
+        }
+
+        /* Markdown Styles */
+        .markdown-body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            font-size: 16px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            padding: 20px;
+            color: #d4d4d4;
+        }
+
+        .markdown-body h1,
+        .markdown-body h2 {
+            border-bottom: 1px solid #3e3e42;
+            padding-bottom: 0.3em;
+        }
+
+        .markdown-body code {
+            background-color: #2d2d2d;
+            border-radius: 6px;
+            padding: 0.2em 0.4em;
+            font-family: monospace;
+        }
+
+        .markdown-body pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        /* Adjust Syntax Highlight container */
+        .hljs {
+            background: #1e1e1e;
+            /* Match app background if possible, or keep atom-one-dark default */
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<style>
+    /* ... existing styles ... */
+    /* About Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: #252526;
+        padding: 30px;
+        border-radius: 8px;
+        border: 1px solid #3e3e42;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        color: #d4d4d4;
+        position: relative;
+    }
+
+    .modal-header h2 {
+        margin-top: 0;
+        color: #007acc;
+        font-size: 1.5rem;
+    }
+
+    .modal-body p {
+        margin: 10px 0;
+        line-height: 1.6;
+    }
+
+    .modal-footer {
+        margin-top: 20px;
+    }
+
+    .modal-btn {
+        background: #007acc;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+    }
+
+    .modal-btn:hover {
+        background: #0098ff;
+    }
+
+    .modal-close-icon {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 20px;
+        cursor: pointer;
+        color: #aaa;
+    }
+
+    .modal-close-icon:hover {
+        color: #fff;
+    }
+</style>
+
+<body>
+    <div class="app-container">
+        <!-- Left Sidebar: Files -->
+        <aside class="sidebar-left" id="sidebar-left">
+            <div class="sidebar-header" style="justify-content: space-between;">
+                <h2><i class="fas fa-folder-open"></i> Explorer</h2>
+                <button class="icon-btn" title="About SmartViewer" onclick="location.hash='about'"
+                    style="font-size: 0.9em;"><i class="fas fa-info-circle"></i></button>
+            </div>
+
+            <div class="sidebar-content">
+                <div class="search-box-container">
+                    <div class="search-box">
+                        <i class="fas fa-filter search-icon"></i>
+                        <input type="text" id="file-search" placeholder="Filter files...">
+                    </div>
+                    <!-- Search Mode Toggle -->
+                    <div class="search-mode-toggle"
+                        style="padding: 5px 10px 10px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #ccc;">
+                        <span><i class="fas fa-search"></i> Mode:</span>
+                        <div style="display: flex; gap: 10px;">
+                            <label style="cursor: pointer; display: flex; align-items: center;">
+                                <input type="radio" name="search-mode" value="name" checked style="margin-right: 5px;">
+                                Name
+                            </label>
+                            <label style="cursor: pointer; display: flex; align-items: center;">
+                                <input type="radio" name="search-mode" value="content" style="margin-right: 5px;">
+                                Content
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 10px; display: flex; gap: 5px;">
+                        <button id="add-folder-btn" title="Add Document Folder"
+                            style="flex: 1; padding: 8px; cursor: pointer; background: #3e3e42; color: #fff; border: 1px solid #555; border-radius: 4px;">
+                            <i class="fas fa-folder-plus"></i> Add Folder
+                        </button>
+                        <button id="manage-folders-btn" title="Manage Folders"
+                            style="padding: 8px 12px; cursor: pointer; background: #3e3e42; color: #fff; border: 1px solid #555; border-radius: 4px;">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    <div class="group-controls">
+                        <div class="control-item">
+                            <label><i class="fas fa-layer-group"></i> Group:</label>
+                            <select id="group-by">
+                                <option value="none" selected>None</option>
+                                <option value="date">Date</option>
+                                <option value="type">Type</option>
+                                <option value="size">Size</option>
+                            </select>
+                        </div>
+                        <div class="control-item">
+                            <label><i class="fas fa-sort"></i> Sort:</label>
+                            <select id="sort-by">
+                                <option value="name" selected>Name</option>
+                                <option value="date">Date</option>
+                                <option value="size">Size</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="active-filter-display" class="active-filter-chip hidden">
+                        <span>All</span> <i class="fas fa-times" id="clear-filter"></i>
+                    </div>
+                </div>
+                <!-- File List -->
+                <ul id="file-list" class="file-tree"></ul>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header / Toolbar -->
+            <header class="main-header">
+                <div class="header-left">
+                    <button id="toggle-sidebar-left" class="icon-btn" title="Toggle File List"><i
+                            class="fas fa-bars"></i></button>
+                    <span class="app-title">Smart Viewer (Adobe Engine)</span>
+                </div>
+
+                <!-- PDF Controls (Moved to Header) -->
+                <div id="pdf-controls" class="pdf-controls hidden"
+                    style="display: flex; gap: 5px; align-items: center;">
+
+                    <div
+                        style="display: flex; align-items: center; background: #252526; padding: 3px; border-radius: 4px; border: 1px solid #3e3e42;">
+                        <button id="pdf-toggle-sidebar" title="Toggle Thumbnails" class="header-btn"><i
+                                class="fas fa-th-large"></i></button>
+
+                        <div class="separator-v"></div>
+
+                        <button id="pdf-zoom-in" title="Zoom In" class="header-btn"><i class="fas fa-plus"></i></button>
+                        <span id="pdf-zoom-level"
+                            style="color:#cccccc; min-width:45px; text-align:center; font-size:0.85em; font-family: monospace;">100%</span>
+                        <button id="pdf-zoom-out" title="Zoom Out" class="header-btn"><i
+                                class="fas fa-minus"></i></button>
+
+                        <div class="separator-v"></div>
+
+                        <button id="pdf-fit-width" title="Fit Width" class="header-btn"><i
+                                class="fas fa-arrows-alt-h"></i></button>
+                        <button id="pdf-fit-height" title="Fit Height" class="header-btn"><i
+                                class="fas fa-arrows-alt-v"></i></button>
+                    </div>
+
+                    <div
+                        style="display: flex; align-items: center; background: #252526; padding: 3px; border-radius: 4px; border: 1px solid #3e3e42;">
+                        <button id="pdf-view-1page" title="Single Page View" class="header-btn"><i
+                                class="fas fa-file"></i></button>
+                        <button id="pdf-view-2page" title="Two Page View" class="header-btn"><i
+                                class="fas fa-columns"></i></button>
+                        <div class="separator-v"></div>
+                        <button id="pdf-rotate" title="Rotate 90°" class="header-btn"><i
+                                class="fas fa-sync-alt"></i></button>
+                    </div>
+
+                    <!-- PDF Search -->
+                    <div class="pdf-search-group"
+                        style="display: flex; align-items: center; background: #252526; padding: 3px; border-radius: 4px; border: 1px solid #3e3e42;">
+                        <input type="text" id="pdf-search-input" placeholder="Search..."
+                            style="background: #1e1e1e; border: 1px solid #3e3e42; color: #d4d4d4; padding: 4px 8px; border-radius: 3px; width: 100px; font-size: 0.9em; margin-right: 5px;">
+                        <button id="pdf-search-prev" title="Previous Match" class="header-btn"><i
+                                class="fas fa-chevron-up"></i></button>
+                        <button id="pdf-search-next" title="Next Match" class="header-btn"><i
+                                class="fas fa-chevron-down"></i></button>
+                        <span id="pdf-search-stats"
+                            style="color: #cccccc; font-size: 0.85em; min-width: 40px; text-align: center; font-family: monospace;">0/0</span>
+                        <!-- <button id="pdf-search-btn" title="Search" class="header-btn"><i class="fas fa-search"></i></button> -->
+                        <!-- Search triggers on type/enter now usually, but kept button if needed, or hidden/integrated -->
+                        <button id="pdf-search-btn" class="header-btn"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+
+                <!-- Image Controls (Moved to Header) -->
+                <div id="image-controls" class="image-controls hidden"
+                    style="display: flex; gap: 5px; align-items: center;">
+                    <div
+                        style="display: flex; align-items: center; background: #252526; padding: 3px; border-radius: 4px; border: 1px solid #3e3e42;">
+                        <button id="zoom-in" title="Zoom In" class="header-btn"><i
+                                class="fas fa-search-plus"></i></button>
+                        <button id="zoom-out" title="Zoom Out" class="header-btn"><i
+                                class="fas fa-search-minus"></i></button>
+                        <div class="separator-v"></div>
+                        <button id="zoom-reset" title="Reset" class="header-btn"><i
+                                class="fas fa-compress"></i></button>
+                    </div>
+                </div>
+
+                <!-- Text Controls (Moved to Header) -->
+                <div id="text-controls" class="text-controls hidden"
+                    style="display: flex; gap: 5px; align-items: center;">
+                    <div class="text-search-group"
+                        style="display: flex; align-items: center; background: #252526; padding: 3px; border-radius: 4px; border: 1px solid #3e3e42;">
+                        <input type="text" id="text-search-input" placeholder="Find..." autocomplete="off"
+                            style="background: #1e1e1e; border: 1px solid #3e3e42; color: #d4d4d4; padding: 4px 8px; border-radius: 3px; width: 150px; font-size: 0.9em; margin-right: 5px;">
+                        <button id="text-search-prev" title="Previous Match" class="header-btn"><i
+                                class="fas fa-chevron-up"></i></button>
+                        <button id="text-search-next" title="Next Match" class="header-btn"><i
+                                class="fas fa-chevron-down"></i></button>
+                        <span id="text-search-stats"
+                            style="color: #cccccc; font-size: 0.85em; min-width: 40px; text-align: center; font-family: monospace;">0/0</span>
+                    </div>
+
+                    <div class="font-controls"
+                        style="display: flex; align-items: center; background: #252526; padding: 3px; border-radius: 4px; border: 1px solid #3e3e42;">
+                        <button id="font-decrease" title="Smaller Font" class="header-btn"><i
+                                class="fas fa-minus"></i></button>
+                        <span id="font-size-display"
+                            style="color: #cccccc; font-size: 0.85em; min-width: 40px; text-align: center; font-family: monospace;">14px</span>
+                        <button id="font-increase" title="Larger Font" class="header-btn"><i
+                                class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Global Search Overlay (Hidden by default) -->
+            <div id="search-overlay" class="search-overlay hidden">
+                <div class="search-bar">
+                    <input type="text" id="overlay-search-input" placeholder="Search text...">
+                    <button id="search-prev"><i class="fas fa-chevron-up"></i></button>
+                    <button id="search-next"><i class="fas fa-chevron-down"></i></button>
+                    <button id="search-close"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="search-stats"></div>
+            </div>
+
+            <!-- Viewer Area -->
+            <div id="viewer-stage" class="viewer-stage" style="display:flex;">
+
+
+                <div style="flex:1; position:relative; overflow:hidden;">
+                    <!-- Info Button -->
+                    <button id="btn-file-info" title="File Information" class="hidden" style="position: absolute; top: 15px; right: 20px; z-index: 1000; 
+                               background: rgba(30, 30, 30, 0.8); color: #ccc; border: 1px solid #555; 
+                               border-radius: 50%; width: 40px; height: 40px; cursor: pointer;
+                               display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        <i class="fas fa-info" style="font-size: 16px;"></i>
+                    </button>
+
+                    <div id="welcome-message" class="welcome-message">
+                        <i class="fas fa-file-pdf"></i>
+                        <h2>Select a document to begin</h2>
+                    </div>
+                    <div id="pdf-container" class="pdf-container hidden"></div>
+                    <div id="image-viewer" class="image-viewer hidden"></div>
+                    <div id="text-viewer" class="text-viewer hidden"></div>
+                    <div id="csv-viewer" class="csv-viewer hidden"></div>
+                    <div id="media-viewer" class="media-viewer hidden"></div>
+                    <div id="file-details-viewer" class="file-details-viewer hidden"
+                        style="padding: 40px; text-align: center; color: #d4d4d4;"></div>
+                </div>
+
+                <!-- PDF Thumbnail Sidebar (Moved to Right) -->
+                <div id="pdf-sidebar" class="pdf-sidebar hidden"
+                    style="width: 200px; background: #252526; border-left: 1px solid #333; overflow-y: auto; flex-shrink: 0; padding: 10px;">
+                </div>
+            </div>
+        </main>
+
+
+
+        <!-- Manage Paths Modal -->
+        <div id="manage-paths-modal" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 500px;">
+                <span class="modal-close-icon" id="manage-paths-close-icon">&times;</span>
+                <div class="modal-header">
+                    <h2>Manage Folders</h2>
+                </div>
+                <div class="modal-body" style="text-align: left; max-height: 300px; overflow-y: auto;">
+                    <ul id="folder-list-container" style="list-style: none; padding: 0; margin: 0;">
+                        <!-- List items will be injected here -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn" id="manage-paths-btn-close">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Modal -->
+        <div id="about-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <span class="modal-close-icon" id="about-close-icon">&times;</span>
+                <div class="modal-header">
+                    <h2>Smart Viewer</h2>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Version:</strong> <span id="about-version">{{ version }}</span></p>
+                    <p><strong>Developer:</strong> SHIN YONG HUI</p>
+                    <p>A smart document viewer powered by Adobe Engine.</p>
+                    <p style="font-size: 0.9em; color: #888;">&copy; 2026 SmartViewer</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn" id="about-btn-close">Close</button>
+                    <button class="modal-btn" id="about-btn-quit"
+                        style="background-color: #d9534f; margin-left: 10px;">Quit App</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scripts -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+        <script>
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        </script>
+
+        <!-- Marked.js (Markdown) -->
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <!-- Highlight.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+        <!-- Common languages for highlight.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+        <script src="/static/js/app.js"></script>
+</body>
+
+</html>

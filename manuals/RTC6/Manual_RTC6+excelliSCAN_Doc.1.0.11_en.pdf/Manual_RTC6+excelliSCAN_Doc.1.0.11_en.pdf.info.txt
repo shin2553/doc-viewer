@@ -1,0 +1,11 @@
+Order confirmation number:	2133765
+Customer order number:		SHDO-S-CKH-25003
+Article number:			0132442
+Customer article number:	-
+
+Article name:			RTC6 PCI-Express; Type 200 SCANa
+Amount:				1 pc
+Serial numbers:			20217395
+
+File:				Manual_RTC6+excelliSCAN_Doc.1.0.11_en.pdf
+SHA256:				6ccfeadb10a93e31d7f9a868ad9a8fc2fae76b95b9c72b77b9ed02d7bb01e030

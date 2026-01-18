@@ -1,0 +1,229 @@
+Datei: LIESMICH.txt
+
+SCANLAB RTC5 Software 'Liesmich'
+
+***************************************************************************
+
+Verwendung
+
+Die RTC5 Interfacekarte in Kombination mit ihrem Software-Treiber erlaubt
+die Echtzeit-Steuerung von Scan-Systemen, Lasern und Peripheriegeräten mit
+einem IBM-kompatiblen PC.
+
+Der RTC5-Software-Treiber und die RTC5-DLL dieses RTC5-Software-Pakets sind
+sowohl für die 32-Bit-Version als auch die 64-Bit-Version der Microsoft-
+Betriebssysteme Windows 10, 8, 7 ausgelegt. Der Treiber unterstützt die 
+Plug-and-Play-Fähigkeit der RTC5 und kann simultan beliebig viele RTC5-Karten 
+steuern.
+
+Der RTC5-Software-Treiber (WDF-Treiber Version 6.1.7600.16385) dieses 
+RTC5-Software-Pakets unterstützt nur die RTC5-DLL der Versionen 
+DLL 535 oder höher. Ältere Software-Dateien (DLL 533 oder niedriger)
+werden nicht unterstützt. Jedoch können alle DLL-Versionen weiterhin mit
+den früheren WDM-Treiber-Versionen 1.0.4.0 oder 2.0.6.0 verwendet werden.
+
+Bei einem Upgrade empfiehlt es sich, zunächst nur die Software-Dateien
+auszutauschen und zu testen und danach erst den Treiber zu aktualisieren.
+
+
+Die Dateien dieses RTC5-Software-Pakets werden im Folgenden aufgelistet.
+Zusätzlich wird die Installation des Treibers, sowie der zugehörigen
+DLL-Datei und Programmdateien ausführlich beschrieben. Weitere Anleitungen
+zum erfolgreichen Betrieb der RTC5-Karte finden Sie im RTC5-Handbuch.
+
+
+***************************************************************************
+
+Hersteller
+
+   SCANLAB GmbH
+   Siemensstraße 2a 
+   82178 Puchheim
+   Deutschland
+
+   Tel. + 49 (89) 800 746-0
+   Fax: + 49 (89) 800 746-199
+
+   info@scanlab.de
+   www.scanlab.de
+
+***************************************************************************
+
+Lieferumfang
+
+Das RTC5-Software-Paket beinhaltet die folgenden Dateien:
+
+1. Lieferumfang- und Installations-Beschreibung
+   README.txt           Beschreibung in englischer Sprache
+   LIESMICH.txt         diese Datei
+
+2. Korrekturfiles
+   cor_1to1.ct5         1:1 Korrekturfile (ohne Feldkorrektur)
+   
+   (Hinweis: Die Korrekturfiles der RTC2, RTC3 und RTC4 Interface-Karten
+    tragen die Dateinamenerweiterung "ctb")
+
+3. CorrectionFileConverter-Programm
+   Das Win32-basierte Programm CorrectionFileConverter.exe ermöglicht
+   das Konvertieren von RTC4-Korrekturfiles in RTC5-Korrekturfiles und
+   umgekehrt. Das Paket enthält auch die zugehörigen Handbücher in
+   deutscher und englischer Sprache.
+
+4. Demo-Dateien
+   Demo1.cpp… Demo7.cpp   Quellcodes in C für Demo-Programm 1…7
+   Demo1 auch als ausführbare Datei für 32 Bit bzw. 64 Bit kompiliert
+   Demo3 auch als Quellcode für C#
+   CMakeLists.txt       Projektgenerierungsdatei für CMake
+   RTC_Variables.cmake  Include-Datei zu CMakeLists.txt
+
+5. HPGL Converter Programm
+   Win32-basierte HPGL Demo-Applikation
+   (benötigt die Programm-Dateien und die 32-Bit-DLL im selben Verzeichnis)
+
+6. iSCANConfig-Programm
+   Das Programm iSCANcfg5.exe ist ein Win32-basiertes Diagnose- und Konfi-
+   gurationsprogramm für iDRIVE-Scan-Systeme (intelliSCAN, intelliSCANde,
+   intelliDRILL, intellicube, intelliWELD, varioSCANde) (benötigt die
+   Programm-Dateien, die 32-Bit-DLL und die RtcHalDLL.dll im gleichen 
+   Verzeichnis!). 
+   Das Paket enthält auch die zugehörigen Handbücher in deutscher 
+   (Handbuch_iSCANcfg_v1-7.pdf) und englischer (Manual_iSCANcfg_v1-7.pdf)
+   Sprache.
+
+7. Windows-Treiber-Dateien
+   RTC5DRV.inf          Geräte-Informations-Datei
+   RTC5DRV.cat          Katalog-Datei
+   RTC5DRV.sys          .sys-Datei DLL
+   RTC5DRVx64.cat       Signierte Katalog-Datei
+   RTC5DRVx64.sys       Signierte .sys-Datei DLL
+   RTC5DRVx86.cat       Signierte Katalog-Datei
+   RTC5DRVx86.sys       Signierte .sys-Datei DLL
+   
+   (Beachten Sie, der Name des Signaturgebers signierter Dateien ist:
+    "SCANLAB AG".)
+
+   Installations-Assistenten-Hilfsdateien:
+   amd64/WdfCoInstaller01009.dll
+   x86/WdfCoInstaller01009.dll
+   
+   Security-Installations-Script für Treiber-Upgrades und Beschreibung:
+   AfterInstallation/ScanlabClassChecker.cmd
+   AfterInstallation/ReadMe_ScanlabClassChecker.pdf
+
+8. RTC5-Files
+   
+ - DLL-File:
+   RTC5DLL.dll          Win32-basierte RTC5 DLL
+   RTC5DLLx64.DLL       Win64-basierte RTC5 DLL
+
+ - Programm-Dateien:
+   RTC5OUT.out          DSP-Programmdatei
+   RTC5RBF.rbf          Firmwaredatei
+   RTC5DAT.dat          binäre Hilfsdatei
+
+ - Utility-Files für C, C++ und C#:  
+   RTC5DLL.lib          Visual C++ Import Library zum impliziten Linken
+                        der DLL für Win32-basierte Applikationen
+   RTC5DLLx64.lib       Visual C++ Import Library zum impliziten Linken
+                        der DLL für Win64-basierte Applikationen
+   RTC5expl.c           C-Funktionen zum DLL-Handling für das explizite
+                        Linken
+   RTC5expl.h           C-Funktionsprototypen der RTC5 zum expliziten
+                        Linken der DLL
+   RTC5impl.h           C-Funktionsprototypen der RTC5 zum impliziten
+                        Linken der DLL
+   RTC5impl.hpp         C++-Funktionsprototypen der RTC5 zum
+                        impliziten Linken der DLL
+   RTC5Wrap.cs          Funktionsprototypen (für C#) der RTC5 zum
+                        impliziten Linken der DLL; zum Kompilieren der
+                        C#-Lösung als 64-bit-Anwendung, ist das
+                        Präprozessor-SYmbol: SL_x64 zu definieren.
+
+ - Utility-File für Delphi:
+   RTC5Import.pas       Importdeklarationen für Delphi
+
+ - Die RTC5-Files werden zur Kennzeichnung der Programmversion
+   (und damit auch zur einfacheren Verwaltung unterschiedlicher Programm-
+   Versionen) zusätzlich in gezippter Version mit ausgeliefert:
+
+   - RTC5DAT_<Version>.zip
+   - RTC5DLL_<Version>.zip (enthält DLL und zugehörige Utility-Files)
+   - RTC5OUT_<Version>.zip
+   - RTC5RBF_<Version>.zip
+
+   Die Programm-Dateien und die DLL können nicht in beliebigen Programm-
+   Versionen miteinander kombiniert werden. Die zip-Dateien enthalten
+   deshalb auch jeweils eine Text-Datei mit entsprechenden Versions-
+   Informationen.
+
+9. RTC5 Tools
+ - SleepMode.cmd			Deaktiviert alle Sleep-und Hibernate-Modes
+ - ReadMe_SleepMode.pdf		Beschreibung der Verwendung des Scripts
+
+10. Änderungshistorie (im Verzeichnis 'RTC5 Files')
+   Beschreibung von Änderungen in der RTC5-Software
+   RTC5_Software_RevisionHistory_<Datum>.pdf      (in englischer Sprache)
+   RTC5_Software_Aenderungshistorie_<Datum>.pdf   (in deutscher Sprache)
+
+Wird das Software-Paket auf einer Daten-CD ausgeliefert, so enthält die CD
+alle Dateien in ungezippter Version. Das komplette Software-Paket wird
+aber zur Kennzeichnung der Programmversion (und damit auch zur einfacheren
+Verwaltung unterschiedlicher Programm-Versionen, siehe Änderungshistorie)
+zusätzlich in gezippter Version mit ausgeliefert: RTC5_Software_<Datum>.zip
+
+***************************************************************************
+
+Installations-Beschreibung
+
+1. Bauen Sie die RTC5-Karte in den PC ein.
+2. Starten Sie den Computer.
+3. WINDOWS 7:
+   Wenn der "Add Hardware Wizard" nicht automatisch startet, dann starten
+   Sie ihn vom Control-Panel (Systemsteuerung) aus. Spezifizieren Sie im 
+   "Add Hardware Wizard" das  Verzeichnis, in dem sich die RTC5-Treiber 
+   befinden. Während der Installation wählt dann das Betriebssystem 
+   automatisch die geeignete Treiber-Datei (32 oder 64 Bit) aus.
+   Beachten Sie die Hinweise in der ReadMe_ScanlabClassChecker.pdf,
+   falls Sie anstelle einer Treiber-Neuinstallation den Treiber
+   aktualisieren.
+   WINDOWS 10, 8: 
+   Rufen Sie den Gerätemanager auf. Finden Sie im vom Gerätemanager
+   dargestellten Geräte-Verzeichnis den Eintrag 'PCI-Gerät' und
+   aktualisieren Sie dessen Treiber mit Angabe des Verzeichnisses, in dem 
+   sich die RTC5-Treiber befinden.
+   Beachten Sie die Hinweise in der ReadMe_ScanlabClassChecker.pdf,
+   falls Sie anstelle einer Treiber-Neuinstallation den Treiber
+   aktualisieren.
+4. Kopieren bzw. entpacken Sie die Dateien RTC5DLL.dll, RTC5OUT.out,
+   RTC5RBF.rbf und RTC5DAT.dat auf die Festplatte Ihres PCs.
+   SCANLAB empfiehlt, diese Dateien in dem Verzeichnis zu speichern,
+   aus dem die Anwendungs-Software gestartet wird.
+   Beachten Sie beim Austauschen einzelner Software-Dateien, dass die
+   Dateien nicht in beliebigen Programmversionen miteinander kombiniert
+   werden können (s.o.).
+5. Kopieren Sie die Korrekturfile(s) (*.CT5) auf die Festplatte Ihres PCs
+   (bestehende Korrekturfiles können weiterhin genutzt werden; speziell
+   angepasste Korrekturfiles nicht überschreiben!). 
+   SCANLAB empfiehlt, diese Dateien in dem Verzeichnis zu speichern,
+   aus dem die Anwendungs-Software gestartet wird.
+
+Auf einem 64-Bit-Betriebssystem unterstützt die 64-Bit-Variante des RTC5-
+Software-Treibers (nach erfolgter Installation) Funktions-Aufrufe sowohl
+aus Win64-basierten Applikationen als auch aus Win32-basierten
+Applikationen. Bereits existierende Win32-basierte Applikationen zur RTC5
+sind damit (auch auf 64-Bit-Systemen) ausführbar, wenn (wie auf 32-Bit-
+Systemen) die im Paket enthaltene Win32-basierte RTC5DLL.dll verwendet
+wird. Für Win64-basierte Applikationen ist im Paket die Win64-basierte DLL
+RTC5DLLx64.dll enthalten. Falls eine Applikation zu dieser DLL Verbindung
+durch implizites Linken aufnehmen soll, ist sie mit der Win64-basierten
+Import-Library RTC5DLLx64.LIB zu linken. Dies wird in der Applikation Demo1
+demonstriert. Im Paket sind sowohl der zugehörige Quellcode Demo1.cpp
+als auch die daraus erzeugten Win32- und Win64-Programme demo1.exe 
+enthalten.
+
+***************************************************************************
+
+Weitere Anleitungen für einen erfolgreichen Betrieb der RTC5-Karte finden
+Sie im RTC5-Handbuch.
+
+***************************************************************************

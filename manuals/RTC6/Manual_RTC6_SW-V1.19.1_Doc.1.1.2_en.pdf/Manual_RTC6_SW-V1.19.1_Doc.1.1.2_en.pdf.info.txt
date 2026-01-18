@@ -1,0 +1,11 @@
+Order confirmation number:	2133765
+Customer order number:		SHDO-S-CKH-25003
+Article number:			0132442
+Customer article number:	-
+
+Article name:			RTC6 PCI-Express; Type 200 SCANa
+Amount:				1 pc
+Serial numbers:			20217395
+
+File:				Manual_RTC6_SW-V1.19.1_Doc.1.1.2_en.pdf
+SHA256:				cb221edf874f4905f33bf42f82534f6f7c00ea0816dfe97aeee04584927ee8f6

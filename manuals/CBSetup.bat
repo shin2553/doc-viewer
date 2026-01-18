@@ -1,0 +1,2 @@
+call .\CBUSetup.exe
+exit

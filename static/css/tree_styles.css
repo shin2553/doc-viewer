@@ -1,0 +1,219 @@
+/* Tree View Styles - VS Code Like */
+
+/* Reset Root List ONLY */
+#file-list,
+ul.file-tree {
+    list-style: none;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Common List Props */
+#file-list ul,
+.tree-children {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    margin: 0;
+    position: relative;
+    /* Guide lines */
+}
+
+/* Collapsed by default */
+.tree-children {
+    display: none;
+}
+
+/* Expanded state */
+.tree-children.open {
+    display: block;
+}
+
+/* Indentation Per Level */
+.tree-children {
+    padding-left: 10px;
+    /* Physical indentation for nesting */
+    border-left: 1px solid #333;
+    /* Indentation Guide Line */
+    margin-left: 10px;
+    /* Offset for the line */
+}
+
+/* Reset LI styles */
+.file-tree li {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+
+/* Row Item Container */
+.tree-item {
+    display: flex;
+    align-items: center;
+    padding: 3px 0;
+    /* Minimal vertical padding */
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background 0.1s;
+    user-select: none;
+    border: 1px solid transparent;
+}
+
+/* Hover Effect - Full Width feel */
+.tree-item:hover {
+    background: #2a2d2e;
+    color: #fff;
+}
+
+.tree-item.active {
+    background: #37373d;
+    color: #fff;
+    border-color: #37373d;
+}
+
+/* Specific Folder Row Styling */
+.folder-row {
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+/* Toggle Arrow */
+.tree-toggle {
+    width: 20px !important;
+    /* Force small width */
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    flex-shrink: 0;
+    flex-grow: 0 !important;
+    /* Prevent growing */
+    transition: transform 0.1s;
+    font-size: 0.8em;
+}
+
+.tree-item.expanded>.tree-toggle {
+    transform: rotate(90deg);
+}
+
+/* Indentation Per Level */
+/* WE MUST ENSURE THIS WINS over the zero padding rule */
+ul.tree-children {
+    padding-left: 20px !important;
+    /* Force indentation */
+    border-left: 1px solid #444;
+    /* Guide Line */
+    margin-left: 5px !important;
+}
+
+/* Icon */
+.tree-icon {
+    width: 20px;
+    text-align: center;
+    margin-right: 8px;
+    /* Slightly more space */
+    color: #e0e0e0;
+    /* Default neutral */
+    flex-shrink: 0;
+}
+
+/* Folder Icons - Amber/Gold */
+.fa-folder,
+.fa-folder-open {
+    color: #FFC107 !important;
+    /* Material Amber */
+}
+
+/* File Icons Colors */
+.fa-file-pdf {
+    color: #FF5252 !important;
+    /* Red */
+}
+
+.fa-file-image {
+    color: #b388ff !important;
+    /* Purple accent */
+}
+
+.fa-file-video,
+.fa-file-audio {
+    color: #448AFF !important;
+    /* Blue accent */
+}
+
+.fa-file-code,
+.fa-file-code-o {
+    color: #69F0AE !important;
+    /* Green accent */
+}
+
+.fa-file-alt,
+.fa-file-lines {
+    color: #B0BEC5 !important;
+    /* Grey */
+}
+
+.fa-file-csv,
+.fa-file-excel {
+    color: #66BB6A !important;
+    /* Green */
+}
+
+.fa-file-archive {
+    color: #FFB74D !important;
+    /* Orange */
+}
+
+/* Brand Icons */
+.fa-python {
+    color: #4B8BBE !important;
+}
+
+.fa-js {
+    color: #F7DF1E !important;
+}
+
+.fa-html5 {
+    color: #E34F26 !important;
+}
+
+.fa-css3-alt {
+    color: #2965f1 !important;
+}
+
+.fa-database {
+    color: #FFCA28 !important;
+}
+
+.fa-file-code {
+    color: #81c784;
+}
+
+/* Label */
+.tree-item span {
+    white-space: normal;
+    /* Allow wrapping */
+    word-break: break-all;
+    line-height: 1.4;
+    flex: 1;
+}
+
+/* Leaf Item (File) Adjustment */
+/* Files don't have toggles, so we add padding to align icon with folder icon */
+.tree-item.leaf {
+    padding-left: 20px;
+    /* Equals width of .tree-toggle */
+}
+
+/* Override existing style.css generic styles */
+.file-tree li i {
+    margin-right: 0 !important;
+    /* Handled by .tree-icon */
+}
+
+.hidden {
+    display: none !important;
+}
