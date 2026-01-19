@@ -6,6 +6,14 @@ import sys
 import ctypes # Required for windll
 from _version import VERSION, BUILD_DATE
 
+# Try importing tkinter for folder dialog
+try:
+    import tkinter as tk
+    from tkinter import filedialog
+    HAS_TKINTER = True
+except ImportError:
+    HAS_TKINTER = False
+
 if getattr(sys, 'frozen', False):
     template_folder = os.path.join(sys._MEIPASS, 'templates')
     static_folder = os.path.join(sys._MEIPASS, 'static')
@@ -73,6 +81,29 @@ else:
 def index():
     return render_template('index.html', version=VERSION)
 
+@app.route('/api/browse_folder', methods=['GET'])
+def browse_folder():
+    """Opens a native folder selection dialog on the server side."""
+    if not HAS_TKINTER:
+        return jsonify({"status": "error", "message": "Tkinter not available"}), 501
+    
+    try:
+        # Create hidden root window
+        root = tk.Tk()
+        root.withdraw()
+        # Ensure it's on top
+        root.attributes('-topmost', True)
+        
+        path = filedialog.askdirectory(title="Select Folder to Add")
+        root.destroy()
+        
+        if path:
+            return jsonify({"status": "success", "path": os.path.normpath(path)})
+        else:
+            return jsonify({"status": "cancelled", "message": "Selection cancelled"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/add_network_path', methods=['POST'])
 def add_network_path():
     """Adds a network path to the explorer paths."""
@@ -127,11 +158,38 @@ def remove_network_path():
     except Exception as e:
          return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/api/add_folder')
+@app.route('/api/get_network_paths')
+def get_network_paths():
+    """Returns the list of currently added network paths."""
+    return jsonify(EXPLORER_PATHS)
+
+@app.route('/api/add_folder', methods=['GET', 'POST'])
 def add_folder():
-    """Opens a folder picker dialog to add a new search path."""
-    import tkinter as tk
-    from tkinter import filedialog
+    """
+    POST: Adds a provided folder path to search paths.
+    GET: Opens a folder picker dialog to add a new search path (Legacy/Direct).
+    """
+    if request.method == 'POST':
+        try:
+            data = request.json
+            folder_selected = data.get('path')
+            
+            if not folder_selected:
+                return jsonify({"status": "error", "message": "No path provided"}), 400
+
+            folder_selected = os.path.normpath(folder_selected)
+            if folder_selected not in SEARCH_PATHS:
+                SEARCH_PATHS.append(folder_selected)
+                save_config()
+                return jsonify({"status": "success", "path": folder_selected})
+            else:
+                 return jsonify({"status": "exists", "path": folder_selected})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
+
+    # GET Request: Browse and Add
+    if not HAS_TKINTER:
+        return jsonify({"status": "error", "message": "Tkinter not available"}), 501
     
     try:
         root = tk.Tk()
@@ -335,18 +393,21 @@ def explore_path():
              
         # items already init
         if not items:
-            with os.scandir(path) as it:
-                for entry in it:
-                    try:
-                        items.append({
-                            "name": entry.name,
-                            "path": entry.path,
-                            "is_dir": entry.is_dir(),
-                            "size": entry.stat().st_size if not entry.is_dir() else 0,
-                            "mtime": entry.stat().st_mtime
-                        })
-                    except OSError:
-                        continue # Skip items we can't access
+            try:
+                with os.scandir(path) as it:
+                    for entry in it:
+                        try:
+                            items.append({
+                                "name": entry.name,
+                                "path": entry.path,
+                                "is_dir": entry.is_dir(),
+                                "size": entry.stat().st_size if not entry.is_dir() else 0,
+                                "mtime": entry.stat().st_mtime
+                            })
+                        except OSError:
+                            continue # Skip items we can't access
+            except PermissionError:
+                return jsonify({"error": "Access Denied: You do not have permission to view this folder.", "code": "PERMISSION_DENIED"}), 403
                     
         # Sort: Directories first, then files
         items.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))

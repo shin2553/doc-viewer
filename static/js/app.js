@@ -5,18 +5,32 @@ const app = {
     // Image State
     imgState: { scale: 1, panning: false, pointX: 0, pointY: 0, startX: 0, startY: 0 },
     // Text State
-    textState: { fontSize: 14, matches: [], currentIndex: -1, originalText: "" },
+    textState: { fontSize: 14, matches: [], currentIndex: -1, originalText: "", currentFile: null, currentOffset: 0 },
+    // PDF State
+    pdfState: { pdfDoc: null, pageNum: 1, pageRendering: false, pageNumPending: null, scale: 1.0, canvas: null, ctx: null, rotation: 0, isTwoPage: false },
+
+    fileExtensions: {
+        video: ['mp4', 'webm', 'mkv', 'avi', 'mov'],
+        image: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
+        audio: ['mp3', 'wav', 'ogg', 'flac'],
+        pdf: ['pdf'],
+        text: ['txt', 'md', 'py', 'js', 'html', 'css', 'json', 'xml', 'log', 'csv', 'yaml', 'yml', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'dockerfile', 'sh', 'bat']
+    },
+
+    state: { groupBy: 'none', sortBy: 'name', typeFilterLib: 'all', typeFilterExp: 'all', activeGroupFilter: null, searchMode: 'name', explorerPath: '', expandedPaths: new Set() },
+    explorerLoaded: false,
 
     init() {
         this.cacheDOM();
         this.bindEvents();
-        this.loadFiles();
-        this.bindAboutLogic();
-        this.bindManagePathsLogic();
-        this.handleHashChange();
+        // this.bindExplorerEvents(); // Removed: Function does not exist
+        this.bindResizerLogic();
 
-        if (window.AdobeDC) this.adobeReady = true;
-        else document.addEventListener("adobe_dc_view_sdk.ready", () => this.adobeReady = true);
+        // Initial Load
+        this.loadFiles();
+        if (this.dom.tabLibraries.classList.contains('active')) {
+            // Already default
+        }
     },
 
     cacheDOM() {
@@ -30,12 +44,21 @@ const app = {
             managePathsBtnClose: document.getElementById('manage-paths-btn-close'),
             folderListContainer: document.getElementById('folder-list-container'),
             fileList: document.getElementById('file-list'),
+
+            // Network Management
+            btnManageNetwork: document.getElementById('manage-network-btn'),
+            manageNetworkModal: document.getElementById('manage-network-modal'),
+            manageNetworkCloseIcon: document.getElementById('manage-network-close-icon'),
+            manageNetworkBtnClose: document.getElementById('manage-network-btn-close'),
+            networkListContainer: document.getElementById('network-list-container'),
+
             fileSearch: document.getElementById('file-search'),
             groupBy: document.getElementById('group-by'),
             sortBy: document.getElementById('sort-by'),
             activeFilterDisplay: document.getElementById('active-filter-display'),
-            activeFilterDisplay: document.getElementById('active-filter-display'),
             clearFilterBtn: document.getElementById('clear-filter'),
+            typeFilterLib: document.getElementById('type-filter-lib'),
+            typeFilterExp: document.getElementById('type-filter-exp'),
 
             // Explorer (Split View)
             tabLibraries: document.getElementById('tab-libraries'),
@@ -87,35 +110,61 @@ const app = {
         });
 
         if (this.dom.btnAddFolder) {
-            this.dom.btnAddFolder.addEventListener('click', () => {
+            this.dom.btnAddFolder.addEventListener('click', async () => {
                 const btn = this.dom.btnAddFolder;
                 const originalText = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Selecting...';
                 btn.disabled = true;
 
-                fetch('/api/add_folder')
-                    .then(response => response.json())
-                    .then(data => {
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-
-                        if (data.status === 'success') {
-                            // alert('Folder added successfully: ' + data.path); // Optional: Non-blocking toast is better but alert is fine for now
-                            this.loadFiles(); // Reload file list
-                        } else if (data.status === 'exists') {
-                            alert('Folder is already in the list: ' + data.path);
-                        } else if (data.status === 'cancelled') {
-                            // User cancelled, do nothing
-                        } else {
-                            alert('Error: ' + (data.message || 'Unknown error'));
+                let path = null;
+                // Try native dialog first
+                try {
+                    const res = await fetch('/api/browse_folder');
+                    if (res.status === 200) {
+                        const d = await res.json();
+                        if (d.status === 'success') path = d.path;
+                        else if (d.status === 'cancelled') {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                            return; // Do nothing
                         }
+                    } else {
+                        throw new Error("Native dialog not supported");
+                    }
+                } catch (e) {
+                    // Fallback to prompt
+                    path = prompt("Enter full folder path to add:");
+                }
+
+                if (path) {
+                    fetch('/api/add_folder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: path })
                     })
-                    .catch(error => {
-                        console.error('Error adding folder:', error);
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                        alert('Failed to open folder picker.');
-                    });
+                        .then(response => response.json())
+                        .then(data => {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+
+                            if (data.status === 'success') {
+                                this.loadFiles(); // Reload file list
+                            } else if (data.status === 'exists') {
+                                alert('Folder is already in the list: ' + data.path);
+                            } else {
+                                alert('Error: ' + (data.message || 'Unknown error'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error adding folder:', error);
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                            alert('Failed to add folder.');
+                        });
+                } else {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
             });
         }
 
@@ -154,6 +203,12 @@ const app = {
             this.dom.fileSearch.value = "";
             this.renderFileList();
         });
+
+        // Libraries Filter
+        if (this.dom.typeFilterLib) this.dom.typeFilterLib.onchange = () => { this.state.typeFilterLib = this.dom.typeFilterLib.value; this.renderFileList(); };
+
+        // Explorer Filter
+        if (this.dom.typeFilterExp) this.dom.typeFilterExp.onchange = () => { this.state.typeFilterExp = this.dom.typeFilterExp.value; this.renderExplorerRefresh(); };
 
         // Image Controls
         this.dom.btnZoomIn.addEventListener('click', () => this.zoomImage(0.2));
@@ -268,10 +323,91 @@ const app = {
                 }
             });
         }
+
+        this.bindManageNetworkLogic();
+        this.bindManagePathsLogic();
+        this.bindAboutLogic();
     },
 
-    state: { groupBy: 'none', sortBy: 'name', activeGroupFilter: null, searchMode: 'name', explorerPath: '', expandedPaths: new Set() },
-    explorerLoaded: false,
+    bindResizerLogic() {
+        const resizer = document.getElementById('sidebar-resizer');
+        const sidebar = document.getElementById('sidebar-left');
+        if (!resizer || !sidebar) return;
+
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            resizer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            sidebar.style.transition = 'none'; // Disable transition for direct control
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const newWidth = e.clientX;
+
+            // Constraints
+            if (newWidth > 150 && newWidth < window.innerWidth * 0.5) {
+                sidebar.style.width = `${newWidth}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('resizing');
+                document.body.style.cursor = 'default';
+                sidebar.style.transition = ''; // Re-enable transition
+
+                // Trigger resize for PDF/Charts if needed
+                if (!this.dom.imageViewer.classList.contains('hidden')) this.resetImage();
+                if (this.pdfState.pdfDoc) this.fitPDFWidth();
+            }
+        });
+    },
+
+
+
+    cacheDOM_duplicate() {
+        this.dom = {
+            fileList: document.getElementById('file-list'),
+            fileSearch: document.getElementById('file-search'),
+            groupBy: document.getElementById('group-by'),
+            sortBy: document.getElementById('sort-by'),
+            typeFilterLib: document.getElementById('type-filter-lib'),
+            typeFilterExp: document.getElementById('type-filter-exp'),
+
+            tabLibraries: document.getElementById('tab-libraries'),
+            tabExplorer: document.getElementById('tab-explorer'),
+            viewLibraries: document.getElementById('view-libraries'),
+            viewExplorer: document.getElementById('view-explorer'),
+
+            pdfContainer: document.getElementById('pdf-container'),
+            imageViewer: document.getElementById('image-viewer'),
+            textViewer: document.getElementById('text-viewer'),
+            csvViewer: document.getElementById('csv-viewer'),
+            mediaViewer: document.getElementById('media-viewer'),
+            fileDetailsViewer: document.getElementById('file-details-viewer'),
+
+            imageControls: document.getElementById('image-controls'),
+            textControls: document.getElementById('text-controls'),
+
+            fontDisplay: document.getElementById('font-size-display'),
+            textSearchStats: document.getElementById('text-search-stats'),
+            textSearchInput: document.getElementById('text-search-input'),
+
+            btnManageFolders: document.getElementById('manage-folders-btn'),
+            managePathsModal: document.getElementById('manage-paths-modal'),
+            managePathsCloseIcon: document.getElementById('manage-paths-close-icon'),
+            managePathsBtnClose: document.getElementById('manage-paths-btn-close'),
+            folderListContainer: document.getElementById('folder-list-container'),
+
+            btnFileInfo: document.getElementById('btn-file-info'),
+            welcomeMsg: document.getElementById('welcome-message'),
+        };
+    },
 
     // --- EXPLORER UNIFIED TREE VIEW LOGIC ---
     switchTab(tab) {
@@ -280,9 +416,9 @@ const app = {
             this.dom.tabExplorer.classList.remove('active');
             // Hide/Show containers
             this.dom.viewLibraries.classList.remove('hidden');
-            this.dom.viewLibraries.style.display = 'flex';
+            this.dom.viewLibraries.style.display = 'flex'; // Ensure flex
             this.dom.viewExplorer.classList.add('hidden');
-            this.dom.viewExplorer.style.display = 'none'; // Ensure CSS doesn't override
+            this.dom.viewExplorer.style.display = 'none';
         } else {
             this.dom.tabLibraries.classList.remove('active');
             this.dom.tabExplorer.classList.add('active');
@@ -290,7 +426,7 @@ const app = {
             this.dom.viewLibraries.classList.add('hidden');
             this.dom.viewLibraries.style.display = 'none';
             this.dom.viewExplorer.classList.remove('hidden');
-            this.dom.viewExplorer.style.display = 'flex';
+            this.dom.viewExplorer.style.display = 'flex'; // Ensure flex
 
             // Load root if empty
             if (!this.explorerLoaded) {
@@ -317,12 +453,45 @@ const app = {
         }
     },
 
+    renderExplorerRefresh() {
+        if (this.dom.tabExplorer.classList.contains('active')) {
+            this.loadExplorerDrives();
+        }
+    },
+
+    fileExtensions: {
+        video: ['mp4', 'webm', 'mkv', 'avi', 'mov'],
+        image: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
+        audio: ['mp3', 'wav', 'ogg', 'flac'],
+        pdf: ['pdf'],
+        text: ['txt', 'md', 'py', 'js', 'html', 'css', 'json', 'xml', 'log', 'csv', 'yaml', 'yml', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'dockerfile', 'sh', 'bat']
+    },
+
     // Generic Lazy Tree Renderer
     renderLazyTreeItems(items, containerUl) {
         containerUl.innerHTML = '';
         if (items.length === 0) {
             containerUl.innerHTML = '<li style="padding-left:20px; color:#555; font-style:italic;">(Empty)</li>';
             return;
+        }
+
+        // Apply Filter (Explorer Mode)
+        // Use typeFilterExp for Explorer
+        if (this.state.typeFilterExp !== 'all') {
+            const tf = this.state.typeFilterExp;
+            items = items.filter(item => {
+                // Always keep directories/drives
+                const isDrive = typeof item === 'string';
+                if (isDrive) return true;
+                if (item.is_dir) return true;
+
+                // Filter files
+                const ext = item.name.split('.').pop().toLowerCase();
+                if (this.fileExtensions[tf]) {
+                    return this.fileExtensions[tf].includes(ext);
+                }
+                return true;
+            });
         }
 
         // Sort: Folders/Drives first, then Files
@@ -389,7 +558,7 @@ const app = {
 
                 // Toggle Event
                 const toggleHandler = (e) => {
-                    e.stopPropagation();
+                    if (e) e.stopPropagation();
                     const isExpanded = childrenUl.classList.contains('expanded');
                     if (isExpanded) {
                         childrenUl.classList.remove('expanded');
@@ -404,7 +573,8 @@ const app = {
                     }
                 };
 
-                contentDiv.onclick = toggleHandler;
+                // Allow clicking anywhere on the row to toggle
+                li.onclick = toggleHandler;
 
                 li.appendChild(contentDiv);
                 li.appendChild(childrenUl);
@@ -412,11 +582,15 @@ const app = {
                 // File Row: [Icon] [Name] (No toggle)
                 contentDiv.className = 'file-list-item'; // Reuse
                 contentDiv.innerHTML = `<i class="${iconClass}" style="margin-right:8px; color:#a0a0a0;"></i> <span>${name}</span>`;
-                contentDiv.onclick = () => {
+
+                // Allow clicking anywhere on the row to open
+                li.onclick = (e) => {
+                    e.stopPropagation();
                     // Open File
                     const ext = name.split('.').pop();
                     this.loadFile({ name: name, path: path, type: ext });
                 };
+
                 li.appendChild(contentDiv);
             }
 
@@ -472,7 +646,7 @@ const app = {
             'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel',
             'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint', 'ppsx': 'fas fa-file-powerpoint'
         };
-        return map[type.toLowerCase()] || 'fas fa-file';
+        return map[type ? type.toLowerCase() : ''] || 'fas fa-file';
     },
 
     getSafeUrl(path) {
@@ -487,14 +661,37 @@ const app = {
 
         if (!this.files) return;
 
+        // 1. Filter by Name/Content Search
         let files = this.files.filter(f => f.name.toLowerCase().includes(this.dom.fileSearch.value.toLowerCase()));
+
+        // 2. Filter by Type (Use typeFilterLib)
+        const tf = this.state.typeFilterLib;
+        if (tf !== 'all') {
+            files = files.filter(f => {
+                const ext = f.name.split('.').pop().toLowerCase();
+                if (this.fileExtensions[tf]) {
+                    return this.fileExtensions[tf].includes(ext);
+                }
+                return true;
+            });
+        }
+
+        if (files.length === 0) {
+            list.className = '';
+            list.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">No files found matching criteria.</div>';
+            return;
+        }
 
         this.sortFiles(files);
 
         if (this.state.groupBy !== 'none' && this.state.groupBy !== 'folder') {
             this.renderGroupedList(files, list);
-        } else if (this.dom.fileSearch.value) {
-            // Search active -> Flat list
+        } else if (this.dom.fileSearch.value || tf !== 'all') {
+            // Search active OR Filter active -> Flat list is usually better, but let's respect group-by=folder (default) if possible?
+            // Actually, if filtering is active, flat list is often easier users. 
+            // Let's stick to flat if search OR non-default filter is active, unless user explicitly asked to group?
+            // The original logic was: if search.value -> renderFlatList. 
+            // Let's extend: if search.value OR typeFilter != 'all' -> renderFlatList
             this.renderFlatList(files, list);
         } else {
             // Default Folder Tree
@@ -738,6 +935,9 @@ const app = {
     },
 
     loadFile(file, skipDetails = false) {
+        if (!file.type && file.name) file.type = file.name.split('.').pop();
+        if (file.type) file.type = file.type.toLowerCase();
+
         console.log("Loading file:", file.name);
         this.currentFile = file;
 
@@ -783,9 +983,9 @@ const app = {
             this.dom.textViewer.classList.remove('hidden');
             this.dom.textControls.classList.remove('hidden');
             this.loadText(file);
-        } else if (['mp4', 'webm'].includes(file.type)) {
+        } else if (this.fileExtensions.video.includes(file.type)) {
             this.dom.mediaViewer.classList.remove('hidden');
-            this.dom.mediaViewer.innerHTML = `<video controls src="${safeUrl}" style="width:100%"></video>`;
+            this.dom.mediaViewer.innerHTML = `<video controls src="${safeUrl}"></video>`;
         } else {
             // Default fallback to text for ANY other file (like .log if missed by checklist)
             this.dom.textViewer.classList.remove('hidden');
@@ -960,7 +1160,23 @@ const app = {
         try {
             this.pdfState.currentFile = file;
             const url = this.getSafeUrl(file.path);
-            const loadingTask = pdfjsLib.getDocument(url);
+
+            const loadingTask = pdfjsLib.getDocument({ url: url });
+
+            loadingTask.onPassword = (updatePassword, reason) => {
+                let msg = "This PDF is password protected. Please enter the password:";
+                if (reason === pdfjsLib.PasswordResponses.INCORRECT_PASSWORD) {
+                    msg = "Incorrect password. Please try again:";
+                }
+                const password = prompt(msg);
+                if (password) {
+                    updatePassword(password);
+                } else {
+                    loadingTask.destroy(); // Cancel loading
+                    // The promise will reject, which is handled by the catch block below
+                }
+            };
+
             this.pdfState.pdfDoc = await loadingTask.promise;
 
             await this.fitPDFWidth(); // Default to Fit Width
@@ -1567,6 +1783,104 @@ const app = {
             }
         } catch (e) {
             alert('Error removing folder: ' + e.message);
+        }
+    },
+
+    bindManageNetworkLogic() {
+        if (this.dom.btnManageNetwork) {
+            this.dom.btnManageNetwork.addEventListener('click', () => {
+                this.openManageNetworkModal();
+            });
+        }
+        if (this.dom.manageNetworkCloseIcon) {
+            this.dom.manageNetworkCloseIcon.addEventListener('click', () => {
+                this.dom.manageNetworkModal.classList.add('hidden');
+            });
+        }
+        if (this.dom.manageNetworkBtnClose) {
+            this.dom.manageNetworkBtnClose.addEventListener('click', () => {
+                this.dom.manageNetworkModal.classList.add('hidden');
+            });
+        }
+        // Close on clean outside click
+        if (this.dom.manageNetworkModal) {
+            this.dom.manageNetworkModal.addEventListener('click', (e) => {
+                if (e.target === this.dom.manageNetworkModal) {
+                    this.dom.manageNetworkModal.classList.add('hidden');
+                }
+            });
+        }
+    },
+
+    openManageNetworkModal() {
+        this.dom.manageNetworkModal.classList.remove('hidden');
+        this.fetchAndRenderNetworkPaths();
+    },
+
+    async fetchAndRenderNetworkPaths() {
+        const container = this.dom.networkListContainer;
+        if (!container) return;
+        container.innerHTML = '<li style="color:#aaa;">Loading...</li>';
+
+        try {
+            const res = await fetch('/api/get_network_paths');
+            const data = await res.json(); // returns array of strings
+
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = '<li style="color:#aaa;">No network locations added.</li>';
+                return;
+            }
+
+            data.forEach(path => {
+                const li = document.createElement('li');
+                li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #3e3e42; color: #d4d4d4;";
+
+                const span = document.createElement('span');
+                span.innerText = path;
+                span.title = path;
+                span.style.cssText = "white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 10px; font-family: monospace; font-size: 0.9em; flex: 1;";
+
+                const btnRemove = document.createElement('button');
+                btnRemove.innerHTML = '<i class="fas fa-trash"></i>';
+                btnRemove.title = "Remove Location";
+                btnRemove.style.cssText = "background: transparent; border: none; color: #d9534f; cursor: pointer; font-size: 1.1em; padding: 5px;";
+
+                btnRemove.onclick = () => this.removeNetworkPath(path);
+
+                li.appendChild(span);
+                li.appendChild(btnRemove);
+                container.appendChild(li);
+            });
+
+        } catch (e) {
+            container.innerHTML = `<li style="color:red;">Error: ${e.message}</li>`;
+        }
+    },
+
+    async removeNetworkPath(path) {
+        if (!confirm(`Are you sure you want to remove this network location?\n\n${path}`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/remove_network_path', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                // Refresh list and explorer view
+                this.fetchAndRenderNetworkPaths();
+                this.loadExplorerDrives(); // Refresh explorer tree
+            } else {
+                alert('Error removing path: ' + data.message);
+            }
+        } catch (e) {
+            alert('Error removing path: ' + e.message);
         }
     },
 

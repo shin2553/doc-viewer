@@ -144,7 +144,7 @@
                     <button class="icon-btn" title="About SmartViewer" onclick="location.hash='about'"
                         style="font-size: 0.9em;"><i class="fas fa-info-circle"></i></button>
                 </div>
-
+                <!-- TABS -->
                 <div class="sidebar-tabs">
                     <button id="tab-libraries" class="tab-btn active">
                         <i class="fas fa-book"></i> Libraries
@@ -153,92 +153,128 @@
                         <i class="fas fa-desktop"></i> Explorer
                     </button>
                 </div>
-            </div>
 
-            <div class="sidebar-content" style="position: relative;">
+                <div class="sidebar-content" style="position: relative;">
 
-                <!-- VIEW 1: SAVED LIBRARIES (Existing) -->
-                <div id="view-libraries" class="sidebar-view"
-                    style="display: flex; flex-direction: column; height: 100%;">
-                    <div class="search-box-container">
-                        <div class="search-box">
-                            <i class="fas fa-filter search-icon"></i>
-                            <input type="text" id="file-search" placeholder="Filter files...">
-                        </div>
-                        <!-- Search Mode Toggle -->
-                        <div class="search-mode-toggle"
-                            style="padding: 5px 10px 10px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #ccc;">
-                            <span><i class="fas fa-search"></i> Mode:</span>
-                            <div style="display: flex; gap: 10px;">
-                                <label style="cursor: pointer; display: flex; align-items: center;">
-                                    <input type="radio" name="search-mode" value="name" checked
-                                        style="margin-right: 5px;">
-                                    Name
-                                </label>
-                                <label style="cursor: pointer; display: flex; align-items: center;">
-                                    <input type="radio" name="search-mode" value="content" style="margin-right: 5px;">
-                                    Content
-                                </label>
+                    <!-- VIEW 1: SAVED LIBRARIES (Existing) -->
+                    <div id="view-libraries" class="sidebar-view"
+                        style="display: flex; flex-direction: column; height: 100%;">
+                        <div class="search-box-container">
+                            <div class="search-box">
+                                <i class="fas fa-filter search-icon"></i>
+                                <input type="text" id="file-search" placeholder="Filter files...">
+                            </div>
+                            <!-- Search Mode Toggle -->
+                            <div class="search-mode-toggle"
+                                style="padding: 5px 10px 10px 10px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #ccc;">
+                                <span><i class="fas fa-search"></i> Mode:</span>
+                                <div style="display: flex; gap: 10px;">
+                                    <label style="cursor: pointer; display: flex; align-items: center;">
+                                        <input type="radio" name="search-mode" value="name" checked
+                                            style="margin-right: 5px;">
+                                        Name
+                                    </label>
+                                    <label style="cursor: pointer; display: flex; align-items: center;">
+                                        <input type="radio" name="search-mode" value="content"
+                                            style="margin-right: 5px;">
+                                        Content
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 10px; display: flex; gap: 5px;">
+                                <button id="add-folder-btn" title="Add Document Folder"
+                                    style="flex: 1; padding: 8px; cursor: pointer; background: #3e3e42; color: #fff; border: 1px solid #555; border-radius: 4px;">
+                                    <i class="fas fa-folder-plus"></i> Add Folder
+                                </button>
+                                <button id="manage-folders-btn" title="Manage Folders"
+                                    style="padding: 8px 12px; cursor: pointer; background: #3e3e42; color: #fff; border: 1px solid #555; border-radius: 4px;">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                            </div>
+                            <div class="group-controls">
+                                <div class="control-item">
+                                    <label><i class="fas fa-layer-group"></i> Group:</label>
+                                    <select id="group-by">
+                                        <option value="none" selected>None</option>
+                                        <option value="date">Date</option>
+                                        <option value="type">Type</option>
+                                        <option value="size">Size</option>
+                                    </select>
+                                </div>
+                                <div class="control-item">
+                                    <label><i class="fas fa-sort"></i> Sort:</label>
+                                    <select id="sort-by">
+                                        <option value="name" selected>Name</option>
+                                        <option value="date">Date</option>
+                                        <option value="size">Size</option>
+                                    </select>
+                                </div>
+                                <div class="control-item">
+                                    <label><i class="fas fa-filter"></i> Filter:</label>
+                                    <select id="type-filter-lib">
+                                        <option value="all" selected>All</option>
+                                        <option value="video">Video</option>
+                                        <option value="image">Image</option>
+                                        <option value="text">Text/Code</option>
+                                        <option value="audio">Audio</option>
+                                        <option value="pdf">PDF</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="active-filter-display" class="active-filter-chip hidden">
+                                <span>All</span> <i class="fas fa-times" id="clear-filter"></i>
                             </div>
                         </div>
-
-                        <div style="margin-bottom: 10px; display: flex; gap: 5px;">
-                            <button id="add-folder-btn" title="Add Document Folder"
-                                style="flex: 1; padding: 8px; cursor: pointer; background: #3e3e42; color: #fff; border: 1px solid #555; border-radius: 4px;">
-                                <i class="fas fa-folder-plus"></i> Add Folder
-                            </button>
-                            <button id="manage-folders-btn" title="Manage Folders"
-                                style="padding: 8px 12px; cursor: pointer; background: #3e3e42; color: #fff; border: 1px solid #555; border-radius: 4px;">
-                                <i class="fas fa-cog"></i>
-                            </button>
-                        </div>
-                        <div class="group-controls">
-                            <div class="control-item">
-                                <label><i class="fas fa-layer-group"></i> Group:</label>
-                                <select id="group-by">
-                                    <option value="none" selected>None</option>
-                                    <option value="date">Date</option>
-                                    <option value="type">Type</option>
-                                    <option value="size">Size</option>
-                                </select>
-                            </div>
-                            <div class="control-item">
-                                <label><i class="fas fa-sort"></i> Sort:</label>
-                                <select id="sort-by">
-                                    <option value="name" selected>Name</option>
-                                    <option value="date">Date</option>
-                                    <option value="size">Size</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="active-filter-display" class="active-filter-chip hidden">
-                            <span>All</span> <i class="fas fa-times" id="clear-filter"></i>
-                        </div>
-                    </div>
-                    <!-- File List -->
-                    <ul id="file-list" class="file-tree" style="flex: 1; overflow-y: auto;"></ul>
-                </div>
-
-                <!-- VIEW 2: EXPLORER (New) -->
-                <div id="view-explorer" class="sidebar-view hidden"
-                    style="display: flex; flex-direction: column; height: 100%;">
-
-                    <div
-                        style="padding: 10px; background: #252526; color: #aaa; font-size: 0.85em; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center;">
-                        <span><i class="fas fa-desktop"></i> This PC</span>
-                        <button id="add-network-path-btn" title="Add Network Location"
-                            style="background: none; border: none; color: #888; cursor: pointer; font-size: 1.1em; transition: color 0.2s;">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                        <!-- File List -->
+                        <ul id="file-list" class="file-tree" style="flex: 1; overflow-y: auto;"></ul>
                     </div>
 
-                    <!-- Single Tree Container for everything -->
-                    <ul id="explorer-list" class="tree-root" style="flex: 1; overflow-y: auto; padding: 0; margin: 0;">
-                    </ul>
-                </div>
+                    <!-- VIEW 2: EXPLORER (New) -->
+                    <div id="view-explorer" class="sidebar-view hidden"
+                        style="display: flex; flex-direction: column; height: 100%;">
 
-            </div>
+                        <div
+                            style="padding: 10px; background: #252526; color: #aaa; font-size: 0.85em; border-bottom: 1px solid #3e3e42; display: flex; justify-content: space-between; align-items: center;">
+                            <span><i class="fas fa-desktop"></i> This PC</span>
+                            <div style="display:flex; gap:5px;">
+                                <button id="manage-network-btn" title="Manage Network Locations"
+                                    style="background: none; border: none; color: #888; cursor: pointer; font-size: 1.1em; transition: color 0.2s;">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <button id="add-network-path-btn" title="Add Network Location"
+                                    style="background: none; border: none; color: #888; cursor: pointer; font-size: 1.1em; transition: color 0.2s;">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Explorer Controls (Filter) -->
+                        <div style="padding: 10px; background: #333333; border-bottom: 1px solid #3e3e42;">
+                            <div class="control-item" style="margin-bottom: 0;">
+                                <label><i class="fas fa-filter"></i> Filter:</label>
+                                <select id="type-filter-exp" style="width: 100%;">
+                                    <option value="all" selected>All</option>
+                                    <option value="video">Video</option>
+                                    <option value="image">Image</option>
+                                    <option value="text">Text/Code</option>
+                                    <option value="audio">Audio</option>
+                                    <option value="pdf">PDF</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Single Tree Container for everything -->
+                        <ul id="explorer-list" class="tree-root"
+                            style="flex: 1; overflow-y: auto; padding: 0; margin: 0;">
+                        </ul>
+                    </div>
+
+                </div>
         </aside>
+
+        <!-- Sidebar Resizer -->
+        <div id="sidebar-resizer" class="resizer-vertical"></div>
 
         <!-- Main Content -->
         <main class="main-content">
@@ -427,6 +463,24 @@
                     <button class="modal-btn" id="about-btn-quit"
                         style="background-color: #d9534f; margin-left: 10px;">Quit
                         App</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Network Modal -->
+        <div id="manage-network-modal" class="modal-overlay hidden">
+            <div class="modal-content" style="max-width: 500px;">
+                <span class="modal-close-icon" id="manage-network-close-icon">&times;</span>
+                <div class="modal-header">
+                    <h2>Manage Network Locations</h2>
+                </div>
+                <div class="modal-body" style="text-align: left; max-height: 300px; overflow-y: auto;">
+                    <ul id="network-list-container" style="list-style: none; padding: 0; margin: 0;">
+                        <!-- List items will be injected here -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn" id="manage-network-btn-close">Close</button>
                 </div>
             </div>
         </div>
