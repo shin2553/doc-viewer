@@ -1,6 +1,13 @@
-# Release Notes - SmartViewer
+# Release Notes -# Smart Viewer Release Notes
 
-## v1.1.3 (2026-01-16)
+## v1.1.4 (2026-01-19)
+- **New Feature**: Added "Network Path" support in Explorer tab. You can now manually add network locations (e.g., `\\nas\share`) via the "+" button.
+- **Improvement**: Explorer tab now correctly handles UNC paths properly listing shares for server roots.
+- **Fix**: Resolved issue where "Libraries" tab would show absolute paths instead of relative structure.
+- **Fix**: Fixed visual bug where tab selection highlighting was incorrect.
+- **Revert**: Restored original "Libraries" tab appearance.
+
+## v1.1.3 (2026-01-15)
 - **New Features**:
     - **PPSX Support**: Added support for `.ppsx` (PowerPoint Slide Show) files. They can now be opened in the system default application.
 - **Improvements**:

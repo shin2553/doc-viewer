@@ -58,3 +58,8 @@ cover/
 *.zip
 *.exe
 *.log
+*.xlsx
+
+# User Config
+config.json
+create_backup.py

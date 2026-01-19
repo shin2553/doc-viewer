@@ -34,7 +34,21 @@ const app = {
             groupBy: document.getElementById('group-by'),
             sortBy: document.getElementById('sort-by'),
             activeFilterDisplay: document.getElementById('active-filter-display'),
+            activeFilterDisplay: document.getElementById('active-filter-display'),
             clearFilterBtn: document.getElementById('clear-filter'),
+
+            // Explorer (Split View)
+            tabLibraries: document.getElementById('tab-libraries'),
+            tabExplorer: document.getElementById('tab-explorer'),
+            viewLibraries: document.getElementById('view-libraries'),
+            viewExplorer: document.getElementById('view-explorer'),
+
+            explorerTreeRoot: document.getElementById('explorer-tree-root'),
+            explorerSeparator: document.querySelector('.explorer-separator'),
+            explorerTreeContainer: document.getElementById('explorer-tree-container'),
+            explorerFileContainer: document.getElementById('explorer-file-container'),
+            explorerCurrentPath: document.getElementById('explorer-current-path'),
+            explorerFileList: document.getElementById('explorer-file-list'),
 
             // Viewers
             viewerStage: document.getElementById('viewer-stage'),
@@ -117,7 +131,6 @@ const app = {
         document.querySelectorAll('input[name="search-mode"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 this.state.searchMode = e.target.value;
-                // Clear current results or re-trigger search
                 if (this.dom.fileSearch.value) {
                     if (this.state.searchMode === 'content') this.handleContentSearch(this.dom.fileSearch.value);
                     else this.renderFileList();
@@ -193,9 +206,247 @@ const app = {
         if (this.dom.btnFileInfo) {
             this.dom.btnFileInfo.onclick = () => this.toggleFileDetails();
         }
+
+        // Explorer Tabs
+        if (this.dom.tabLibraries) {
+            this.dom.tabLibraries.addEventListener('click', () => this.switchTab('libraries'));
+            this.dom.tabExplorer.addEventListener('click', () => this.switchTab('explorer'));
+        }
+
+        // Explorer Resizer
+        if (this.dom.explorerSeparator) {
+            let isResizing = false;
+            this.dom.explorerSeparator.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'row-resize';
+                e.preventDefault(); // Prevent text selection
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                const containerRect = this.dom.sidebarLeft.getBoundingClientRect(); // relative to sidebar
+                // Actually need relative to view-explorer or sidebar
+                // Simple approach: Set flex-basis of tree container based on mouse Y relative to sidebar top
+                const sidebarTop = this.dom.sidebarLeft.getBoundingClientRect().top;
+                const newHeight = e.clientY - sidebarTop - 48; // aprox header height adjustment
+
+                // Min/Max constraints
+                if (newHeight > 100 && newHeight < window.innerHeight - 200) {
+                    this.dom.explorerTreeContainer.style.flex = `0 0 ${newHeight}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = 'default';
+                }
+            });
+        }
+
+        // Add Network Path Button
+        const btnAddNet = document.getElementById('add-network-path-btn');
+        if (btnAddNet) {
+            btnAddNet.addEventListener('click', async () => {
+                const path = prompt("Enter Network Path (e.g. \\\\server\\share):");
+                if (path) {
+                    try {
+                        const res = await fetch('/api/add_network_path', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: path })
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            this.loadExplorerDrives(); // Refresh
+                        } else {
+                            alert('Error: ' + (data.message || 'Unknown error'));
+                        }
+                    } catch (e) {
+                        alert('Failed to add path: ' + e.message);
+                    }
+                }
+            });
+        }
     },
 
-    state: { groupBy: 'none', sortBy: 'name', activeGroupFilter: null, searchMode: 'name' },
+    state: { groupBy: 'none', sortBy: 'name', activeGroupFilter: null, searchMode: 'name', explorerPath: '', expandedPaths: new Set() },
+    explorerLoaded: false,
+
+    // --- EXPLORER UNIFIED TREE VIEW LOGIC ---
+    switchTab(tab) {
+        if (tab === 'libraries') {
+            this.dom.tabLibraries.classList.add('active');
+            this.dom.tabExplorer.classList.remove('active');
+            // Hide/Show containers
+            this.dom.viewLibraries.classList.remove('hidden');
+            this.dom.viewLibraries.style.display = 'flex';
+            this.dom.viewExplorer.classList.add('hidden');
+            this.dom.viewExplorer.style.display = 'none'; // Ensure CSS doesn't override
+        } else {
+            this.dom.tabLibraries.classList.remove('active');
+            this.dom.tabExplorer.classList.add('active');
+            // Hide/Show containers
+            this.dom.viewLibraries.classList.add('hidden');
+            this.dom.viewLibraries.style.display = 'none';
+            this.dom.viewExplorer.classList.remove('hidden');
+            this.dom.viewExplorer.style.display = 'flex';
+
+            // Load root if empty
+            if (!this.explorerLoaded) {
+                this.loadExplorerDrives();
+                this.explorerLoaded = true;
+            }
+        }
+    },
+
+    async loadExplorerDrives() {
+        const root = document.getElementById('explorer-list');
+        if (!root) return;
+
+        root.innerHTML = '<li style="padding:10px; color:#aaa;">Loading Drives...</li>';
+        try {
+            const res = await fetch('/api/explore'); // No path = drives
+            if (!res.ok) throw new Error("Failed");
+            const drives = await res.json();
+
+            // Render drives as root nodes
+            this.renderLazyTreeItems(drives, root);
+        } catch (e) {
+            root.innerHTML = `<li style="padding:10px; color:red;">${e.message}</li>`;
+        }
+    },
+
+    // Generic Lazy Tree Renderer
+    renderLazyTreeItems(items, containerUl) {
+        containerUl.innerHTML = '';
+        if (items.length === 0) {
+            containerUl.innerHTML = '<li style="padding-left:20px; color:#555; font-style:italic;">(Empty)</li>';
+            return;
+        }
+
+        // Sort: Folders/Drives first, then Files
+        items.sort((a, b) => {
+            const isDirA = (typeof a === 'string') || a.is_dir;
+            const isDirB = (typeof b === 'string') || b.is_dir;
+            if (isDirA !== isDirB) return isDirA ? -1 : 1;
+
+            const nameA = a.name || a;
+            const nameB = b.name || b;
+            return nameA.localeCompare(nameB);
+        });
+
+        items.forEach(item => {
+            const isDrive = typeof item === 'string';
+            const name = isDrive ? item : item.name;
+            const path = isDrive ? item : item.path;
+            const isDir = isDrive || item.is_dir;
+
+            const li = document.createElement('li');
+            li.className = isDir ? 'tree-node' : 'file-list-item'; // Reuse existing styles
+            // Slight style adjustment for unification
+            if (!isDir) li.style.paddingLeft = "24px";
+
+            // Content Container
+            const contentDiv = document.createElement('div');
+            contentDiv.style.display = 'flex';
+            contentDiv.style.alignItems = 'center';
+            contentDiv.style.cursor = 'pointer';
+            contentDiv.style.padding = '4px 0';
+
+            // Icon Logic
+            let iconClass = 'fas fa-file';
+            if (isDir) {
+                iconClass = isDrive ? 'fas fa-hdd' : 'fas fa-folder';
+            } else {
+                const ext = name.split('.').pop();
+                iconClass = this.getFileIcon(ext);
+            }
+
+            if (isDir) {
+                // Folder Row: [Toggle] [Icon] [Name]
+                contentDiv.className = 'tree-content';
+
+                // Toggle Icon
+                const toggle = document.createElement('span');
+                toggle.className = 'tree-toggle'; // Reuse style
+                toggle.innerHTML = '<i class="fas fa-caret-right"></i>';
+
+                // Label
+                const icon = document.createElement('i');
+                icon.className = `${iconClass} tree-icon`;
+
+                const label = document.createElement('span');
+                label.innerText = name;
+
+                contentDiv.appendChild(toggle);
+                contentDiv.appendChild(icon);
+                contentDiv.appendChild(label);
+
+                // Children Container (Hidden)
+                const childrenUl = document.createElement('ul');
+                childrenUl.className = 'tree-children'; // Reuse style
+
+                // Toggle Event
+                const toggleHandler = (e) => {
+                    e.stopPropagation();
+                    const isExpanded = childrenUl.classList.contains('expanded');
+                    if (isExpanded) {
+                        childrenUl.classList.remove('expanded');
+                        toggle.innerHTML = '<i class="fas fa-caret-right"></i>';
+                    } else {
+                        childrenUl.classList.add('expanded');
+                        toggle.innerHTML = '<i class="fas fa-caret-down"></i>';
+                        // Lazy Load if empty
+                        if (!childrenUl.hasChildNodes()) {
+                            this.loadLazyTreeLevel(path, childrenUl);
+                        }
+                    }
+                };
+
+                contentDiv.onclick = toggleHandler;
+
+                li.appendChild(contentDiv);
+                li.appendChild(childrenUl);
+            } else {
+                // File Row: [Icon] [Name] (No toggle)
+                contentDiv.className = 'file-list-item'; // Reuse
+                contentDiv.innerHTML = `<i class="${iconClass}" style="margin-right:8px; color:#a0a0a0;"></i> <span>${name}</span>`;
+                contentDiv.onclick = () => {
+                    // Open File
+                    const ext = name.split('.').pop();
+                    this.loadFile({ name: name, path: path, type: ext });
+                };
+                li.appendChild(contentDiv);
+            }
+
+            containerUl.appendChild(li);
+        });
+    },
+
+    async loadLazyTreeLevel(path, containerUl) {
+        containerUl.innerHTML = '<li style="padding-left:20px; color:#777;">Loading...</li>';
+        try {
+            const res = await fetch(`/api/explore?path=${encodeURIComponent(path)}`);
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Unknown Error");
+            }
+            const items = await res.json();
+            this.renderLazyTreeItems(items, containerUl);
+        } catch (e) {
+            containerUl.innerHTML = `<li style="padding-left:20px; color:red;">${e.message}</li>`;
+        }
+    },
+
+
+    formatSize(bytes) {
+        if (!bytes) return '';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    },
 
     async loadFiles() {
         try {
@@ -225,7 +476,7 @@ const app = {
     },
 
     getSafeUrl(path) {
-        return "/manuals/" + path.split('/').map(encodeURIComponent).join('/');
+        return `/api/serve_file?path=${encodeURIComponent(path)}`;
     },
 
     // --- RENDERING ---
@@ -1451,6 +1702,10 @@ const app = {
         } else {
             modal.classList.add('hidden');
         }
+    },
+
+    getSafeUrl(path) {
+        return `/api/serve_file?path=${encodeURIComponent(path)}`;
     }
 };
 

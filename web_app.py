@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, send_file
 import os
 import fitz  # PyMuPDF
 
 import sys
+import ctypes # Required for windll
 from _version import VERSION, BUILD_DATE
 
 if getattr(sys, 'frozen', False):
@@ -19,12 +20,112 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+import json
+
+# Global list of paths to search
 # Global list of paths to search
 SEARCH_PATHS = [BASE_DIR]
+EXPLORER_PATHS = [] # Custom paths for Explorer view
+CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
+
+def load_config():
+    """Loads configuration from file."""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading config: {e}")
+    return {}
+
+def save_config():
+    """Saves current configuration to file."""
+    try:
+        config = {
+            "search_paths": SEARCH_PATHS,
+            "explorer_paths": EXPLORER_PATHS
+        }
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving config: {e}")
+
+# Initialize Paths from config
+config = load_config()
+
+# 1. Search Paths (Libraries)
+if "search_paths" in config:
+    # Ensure BASE_DIR is always present
+    loaded_paths = config["search_paths"]
+    if BASE_DIR not in loaded_paths:
+        loaded_paths.insert(0, BASE_DIR)
+    SEARCH_PATHS = loaded_paths
+else:
+    SEARCH_PATHS = [BASE_DIR]
+
+# 2. Explorer Paths (Custom Network/Local Paths)
+if "explorer_paths" in config:
+    EXPLORER_PATHS = config["explorer_paths"]
+else:
+    EXPLORER_PATHS = [] 
 
 @app.route('/')
 def index():
-    return render_template('index.html', version=VERSION, build_date=BUILD_DATE)
+    return render_template('index.html', version=VERSION)
+
+@app.route('/api/add_network_path', methods=['POST'])
+def add_network_path():
+    """Adds a network path to the explorer paths."""
+    try:
+        data = request.json
+        path = data.get('path')
+        if not path:
+             return jsonify({"status": "error", "message": "No path provided"}), 400
+        
+        # Normalize and ensure trailing slash for proper root handling
+        path = os.path.normpath(path)
+        if not path.endswith(os.sep):
+            path += os.sep
+            
+        if path not in EXPLORER_PATHS:
+            EXPLORER_PATHS.append(path)
+            save_config()
+            return jsonify({"status": "success", "path": path})
+        else:
+            return jsonify({"status": "exists", "path": path})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/remove_network_path', methods=['POST'])
+def remove_network_path():
+    """Removes a network path from the explorer paths."""
+    try:
+        data = request.json
+        path = data.get('path')
+        if not path:
+             return jsonify({"status": "error", "message": "No path provided"}), 400
+        
+        # Try finding the path with or without trailing slash
+        candidates = [path, path + os.sep, path.rstrip(os.sep)]
+        
+        found = False
+        lists_to_check = [EXPLORER_PATHS]
+        
+        for p_list in lists_to_check:
+            for c in candidates:
+                if c in p_list:
+                    p_list.remove(c)
+                    found = True
+                    break
+            if found: break
+            
+        if found:
+            save_config()
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"status": "error", "message": "Path not found"}), 404
+    except Exception as e:
+         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/add_folder')
 def add_folder():
@@ -45,6 +146,7 @@ def add_folder():
             folder_selected = os.path.normpath(folder_selected)
             if folder_selected not in SEARCH_PATHS:
                 SEARCH_PATHS.append(folder_selected)
+                save_config()
                 return jsonify({"status": "success", "path": folder_selected})
             else:
                  return jsonify({"status": "exists", "path": folder_selected})
@@ -54,7 +156,7 @@ def add_folder():
 
 @app.route('/api/get_folders')
 def get_folders():
-    """Returns the list of current search paths."""
+    """Returns the list of currently added folder paths."""
     return jsonify(SEARCH_PATHS)
 
 @app.route('/api/remove_folder', methods=['POST'])
@@ -71,6 +173,7 @@ def remove_folder():
         
         if path_to_remove in SEARCH_PATHS:
             SEARCH_PATHS.remove(path_to_remove)
+            save_config()
             return jsonify({"status": "success", "path": path_to_remove})
         else:
             return jsonify({"status": "error", "message": "Path not found in list"}), 404
@@ -80,72 +183,186 @@ def remove_folder():
 
 @app.route('/api/files')
 def list_files():
-    """Returns a hierarchical structure of files from all search paths."""
-    # System/Internal folders to exclude
-    EXCLUDED_DIRS = {
-        'static', 'templates', '__pycache__', 'build', 'dist', 
-        '_internal', '.git', '.idea', '.vscode'
-    }
+    """Lists all files in the searched paths."""
+    file_list = []
     
-    all_files = []
-    
-    for search_path in SEARCH_PATHS:
-        if not os.path.exists(search_path):
+    for base_path in SEARCH_PATHS:
+        if not os.path.exists(base_path):
             continue
 
         # Get display name for the root folder
-        norm_search_path = os.path.normpath(search_path)
+        norm_search_path = os.path.normpath(base_path)
         root_name = os.path.basename(norm_search_path)
         if not root_name: # Handle drive roots like C:\
-            root_name = norm_search_path.rstrip(os.sep)
+            root_name = norm_search_path.rstrip(os.sep).rstrip(':') + ":" # Ensure C: format
 
-        for root, dirs, files in os.walk(search_path):
-            # Modify dirs in-place to exclude unwanted directories from walk
+        for root, dirs, files in os.walk(base_path):
+            # Exclude internal folders
+            EXCLUDED_DIRS = {
+                'static', 'templates', '__pycache__', 'build', 'dist', 
+                '_internal', '.git', '.idea', '.vscode'
+            }
+            # Modify dirs in-place to skip walking them
             dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS and not d.startswith('.')]
-            dirs.sort()
-            files.sort()
             
             for file in files:
-                # Optional: Exclude the executable itself if desired, or specific system files
+                # Exclude specific files
                 if file.lower() in ['smartviewer.exe', 'smartviewer.spec'] or file.startswith('.'):
                     continue
                     
+                full_path = os.path.join(root, file)
                 try:
-                    ext = os.path.splitext(file)[1].lower()
-                    full_path = os.path.join(root, file)
+                    stats = os.stat(full_path)
                     
-                    rel_path = os.path.relpath(full_path, search_path)
-                    rel_path_web = rel_path.replace("\\", "/") 
-                    
-                    # Tree Path includes the root folder name to group files under it
-                    tree_path = f"{root_name}/{rel_path_web}"
-                    
-                    mtime = 0
-                    ctime = 0
-                    size = 0
+                    # Calculate relative path for tree structure
                     try:
-                        stat = os.stat(full_path)
-                        mtime = stat.st_mtime
-                        ctime = stat.st_ctime
-                        size = stat.st_size
-                    except:
-                        pass
+                        rel_path = os.path.relpath(full_path, base_path)
+                        rel_path_str = rel_path.replace("\\", "/")
+                        tree_path = f"{root_name}/{rel_path_str}"
+                    except ValueError:
+                        # Fallback if on different drive (shouldn't happen given os.walk)
+                        tree_path = f"{root_name}/{file}"
 
-                    all_files.append({
-                        "name": rel_path_web,
-                        "path": rel_path_web, # Currently used for serving
-                        "tree_path": tree_path, # New field for tree grouping
-                        "root": search_path,
-                        "type": ext[1:] if len(ext) > 1 else "txt",
-                        "mtime": mtime,
-                        "ctime": ctime,
-                        "size": size
+                    file_list.append({
+                        "name": file,
+                        "path": full_path, # Absolute path for internal usage
+                        "tree_path": tree_path, # RESTORED: For UI grouping
+                        "root": base_path,
+                        "size": stats.st_size,
+                        "mtime": stats.st_mtime,
+                        "ctime": stats.st_ctime,
+                        "type": file.split('.')[-1].lower() if '.' in file else 'unknown'
                     })
                 except Exception as e:
-                    print(f"Skipping {file}: {e}")
+                    # Skip files we can't access
                     continue
+                    
+    return jsonify(file_list)
+
+import string
+
+def get_drives():
+    drives = []
+    bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+    for letter in string.ascii_uppercase:
+        if bitmask & 1:
+            drives.append(f"{letter}:\\")
+        bitmask >>= 1
+    return drives
+
+@app.route('/api/explore')
+def explore_path():
+    """Returns directory listing for a given path or list of drives if empty."""
+    path = request.args.get('path', '')
     
-    return jsonify(all_files)
+    if not path:
+        # Return Drives + Custom Explorer Paths
+        drives = get_drives()
+        
+        # Add Custom Paths
+        for p in EXPLORER_PATHS:
+            if p not in drives:
+                drives.append(p)
+                
+        return jsonify(drives)
+        
+    try:
+        # Debug print
+        print(f"Explore request for: {path}")
+        
+        # Handle UNC Root (e.g., \\server or \\server\)
+        # Python cannot normally listdir a UNC root. We must list shares.
+        items = []
+        if path.startswith(r'\\') and path.count('\\') == 2 and not path.endswith('\\'):
+             # case: \\server -> append \
+             path += '\\'
+
+        if path.startswith(r'\\') and path.strip('\\').count('\\') == 0:
+            # This looks like a server root like \\server or \\server\
+            # Try to list shares using 'net view'
+            try:
+                import subprocess
+                # cmd: net view \\server
+                # Remove trailing slash for net view
+                server_target = path.rstrip('\\')
+                
+                # Run net view
+                # Note: This might be slow or fail depending on auth
+                result = subprocess.run(f'net view "{server_target}"', capture_output=True, text=True, shell=True)
+                
+                if result.returncode == 0:
+                    lines = result.stdout.splitlines()
+                    # Parse output. Usually starts with dashes '---'
+                    # Share name   Type   ...
+                    # Multimedia   Disk   ...
+                    start_parsing = False
+                    for line in lines:
+                        if line.startswith('---'):
+                            start_parsing = True
+                            continue
+                        if not start_parsing: 
+                            continue
+                        if not line.strip(): 
+                            continue
+                        if "The command completed successfully" in line:
+                            break
+                            
+                        # Extract share name (first chunk)
+                        parts = line.split()
+                        if parts:
+                            share_name = parts[0]
+                            # Construct full path
+                            full_share_path = os.path.join(server_target, share_name)
+                            items.append({
+                                "name": share_name,
+                                "path": full_share_path,
+                                "is_dir": True,
+                                "size": 0,
+                                "mtime": 0
+                            })
+                    if items:
+                        return jsonify(items)
+            except Exception as e:
+                print(f"Failed to list shares for {path}: {e}")
+                # Fallthrough to normal method just in case
+
+        if not os.path.exists(path):
+             print(f"Path not found: {path}")
+             return jsonify({"error": f"Path not found: {path}"}), 404
+             
+        if not os.path.isdir(path):
+             return jsonify({"error": "Not a directory"}), 400
+             
+        # items already init
+        if not items:
+            with os.scandir(path) as it:
+                for entry in it:
+                    try:
+                        items.append({
+                            "name": entry.name,
+                            "path": entry.path,
+                            "is_dir": entry.is_dir(),
+                            "size": entry.stat().st_size if not entry.is_dir() else 0,
+                            "mtime": entry.stat().st_mtime
+                        })
+                    except OSError:
+                        continue # Skip items we can't access
+                    
+        # Sort: Directories first, then files
+        items.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
+        return jsonify(items)
+    except Exception as e:
+        print(f"Explore error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/serve_file')
+def serve_file():
+    """Serves a file from an absolute path."""
+    path = request.args.get('path')
+    if not path or not os.path.exists(path):
+        return "File not found", 404
+        
+    return send_file(path)
 
 @app.route('/api/open_external')
 def open_external_file():
@@ -203,13 +420,19 @@ def read_file_chunk():
     # Security check & Normalization
     rel_path = rel_path.replace("\\", "/") # Normalize input to forward slashes
     
-    full_path = None
-    for search_path in SEARCH_PATHS:
-        candidate_path = os.path.join(search_path, rel_path)
-        candidate_path = os.path.abspath(candidate_path)
-        if os.path.exists(candidate_path) and candidate_path.startswith(os.path.abspath(search_path)):
-            full_path = candidate_path
-            break
+    # Check if absolute path provided (for Explorer mode)
+    if os.path.isabs(request.args.get('path', '')):
+        # Trust the absolute path if it exists
+        full_path = os.path.normpath(request.args.get('path'))
+    else:
+        # Legacy/Search Path logic
+        full_path = None
+        for search_path in SEARCH_PATHS:
+            candidate_path = os.path.join(search_path, rel_path)
+            candidate_path = os.path.abspath(candidate_path)
+            if os.path.exists(candidate_path):
+                full_path = candidate_path
+                break
             
     if not full_path or not os.path.exists(full_path):
         return jsonify({"error": f"File not found: {rel_path}"}), 404
