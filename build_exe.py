@@ -86,6 +86,8 @@ def build():
         '--exclude-module=PyQt5',
         '--exclude-module=PyQt5',
         # '--exclude-module=tkinter', # Needed for folder selection
+        '--icon=icon.ico', # Set executable icon
+        '--add-data=icon.png;.', # Include icon image for tray
         '--log-level=WARN',
     ]
     

@@ -658,7 +658,19 @@ if __name__ == '__main__':
     tray_icon = None
 
     def create_icon_image():
-        # Create a simple icon
+        # Try to load high-quality icon if it exists
+        icon_path = "icon.png"
+        if getattr(sys, 'frozen', False):
+            # If running as exe, icon might be in _internal or base dir
+            icon_path = os.path.join(sys._MEIPASS, "icon.png") if hasattr(sys, '_MEIPASS') else os.path.join(os.path.dirname(sys.executable), "icon.png")
+        
+        if os.path.exists(icon_path):
+            try:
+                return Image.open(icon_path)
+            except Exception as e:
+                print(f"Error loading icon image: {e}")
+
+        # Fallback: Create a simple icon if png fails/doesn't exist
         width = 64
         height = 64
         color1 = (0, 122, 204)
