@@ -5,7 +5,7 @@ a = Analysis(
     ['web_app.py'],
     pathex=[],
     binaries=[],
-    datas=[('templates', 'templates'), ('static', 'static')],
+    datas=[('templates', 'templates'), ('static', 'static'), ('icon.png', '.')],
     hiddenimports=['pystray', 'PIL', 'tendo', 'win32event', 'win32api'],
     hookspath=[],
     hooksconfig={},
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['icon.ico'],
 )
