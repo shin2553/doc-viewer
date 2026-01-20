@@ -425,6 +425,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0 8px;
+    min-width: 0; /* Allow shrinking */
 }
 
 .search-box input {
@@ -434,6 +435,7 @@ body {
     padding: 6px;
     flex: 1;
     outline: none;
+    min-width: 0; /* Allow input to shrink */
 }
 
 .group-controls {
