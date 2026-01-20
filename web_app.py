@@ -376,7 +376,8 @@ def explore_path():
                                 "path": full_share_path,
                                 "is_dir": True,
                                 "size": 0,
-                                "mtime": 0
+                                "mtime": 0,
+                                "ctime": 0
                             })
                     if items:
                         return jsonify(items)
@@ -402,7 +403,8 @@ def explore_path():
                                 "path": entry.path,
                                 "is_dir": entry.is_dir(),
                                 "size": entry.stat().st_size if not entry.is_dir() else 0,
-                                "mtime": entry.stat().st_mtime
+                                "mtime": entry.stat().st_mtime,
+                                "ctime": entry.stat().st_ctime
                             })
                         except OSError:
                             continue # Skip items we can't access
@@ -429,21 +431,23 @@ def serve_file():
 def open_external_file():
     """Opens a file in the default system application."""
     root = request.args.get('root')
-    rel_path = request.args.get('path')
+    path = request.args.get('path')
     
-    if not root or not rel_path:
+    if not path:
         return jsonify({"status": "error", "message": "Missing arguments"}), 400
         
     try:
-        # Security check: verify root is in SEARCH_PATHS (or close enough logic)
-        # For now, simplistic check if root exists
-        if not os.path.exists(root):
-             return jsonify({"status": "error", "message": "Invalid root"}), 400
-
-        full_path = os.path.normpath(os.path.join(root, rel_path))
+        # If path is absolute, use it directly
+        if os.path.isabs(path):
+            full_path = os.path.normpath(path)
+        elif root:
+            # If path is relative, we need root
+            full_path = os.path.normpath(os.path.join(root, path))
+        else:
+            return jsonify({"status": "error", "message": "Missing root for relative path"}), 400
         
         if not os.path.exists(full_path):
-            return jsonify({"status": "error", "message": "File not found"}), 404
+            return jsonify({"status": "error", "message": f"File not found: {full_path}"}), 404
             
         # Open file
         os.startfile(full_path)

@@ -675,8 +675,7 @@ const app = {
                 li.onclick = (e) => {
                     e.stopPropagation();
                     // Open File
-                    const ext = name.split('.').pop();
-                    this.loadFile({ name: name, path: path, type: ext });
+                    this.loadFile(item);
                 };
 
                 li.appendChild(contentDiv);
@@ -2184,7 +2183,7 @@ const app = {
                     <span style="font-family: monospace; color: #d4d4d4; word-break: break-all;">${file.path}</span>
 
                     <span style="color: #888;">Root Folder:</span>
-                    <span style="font-family: monospace; color: #d4d4d4; word-break: break-all;">${file.root}</span>
+                    <span style="font-family: monospace; color: #d4d4d4; word-break: break-all;">${file.root || '-'}</span>
                 </div>
             </div>
             
@@ -2202,7 +2201,11 @@ const app = {
         if (btnOpen) {
             btnOpen.onclick = () => {
                 if (confirm(`이 파일(${file.name})은 뷰어에서 직접 열 수 없습니다.\n시스템 기본 응용 프로그램으로 여시겠습니까?`)) {
-                    fetch(`/api/open_external?root=${encodeURIComponent(file.root)}&path=${encodeURIComponent(file.path)}`)
+                    const apiUrl = file.root
+                        ? `/api/open_external?root=${encodeURIComponent(file.root)}&path=${encodeURIComponent(file.path)}`
+                        : `/api/open_external?path=${encodeURIComponent(file.path)}`;
+
+                    fetch(apiUrl)
                         .then(res => res.json())
                         .then(data => {
                             if (data.status !== 'success') {
