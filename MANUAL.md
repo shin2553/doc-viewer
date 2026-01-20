@@ -1,41 +1,59 @@
-# SmartViewer User Manual
+# SmartViewer 사용자 설명서 (v1.2.0)
 
-## Overview
-SmartViewer is a versatile file viewer designed to browse and view various document formats, images, and code files quickly and efficiently.
+SmartViewer는 다양한 문서, 이미지, 코드 파일을 빠르고 편리하게 확인하고 관리할 수 있는 스마트 문서 뷰어입니다.
 
-## Features
+## 1. 주요 기능 및 지원 형식
 
-### 1. Supported File Formats
-- **Documents**: PDF, Markdown (.md), Text (.txt), CSV
-- **Images**: PNG, JPG, JPEG, GIF, WEBP
-- **Code**: Python (.py), JavaScript (.js), HTML, CSS, JSON, XML, YAML, C/C++, Java, Go, Rust, SQL, and more.
-- **Media**: MP4, WEBM
-- **External Files**: MS Office (.docx, .xlsx, .pptx), Archives (.zip, .7z, .rar) - *Opened in default system application.*
-
-### 2. Interface Guide
-- **Sidebar**: Browse folders and files. Use the filter box to find files by name.
-    - **Toggle Sidebar**: Click the hamburger icon (≡) to hide/show the sidebar.
-    - **Search Mode**: Switch between "File Name" search and "File Content" search.
-    - **Manage Folders**: Add or remove folders from the scanning list.
-- **Main Viewer**: Displays the selected file content.
-    - **Images**: Zoom and pan controls available.
-    - **PDF**: Page navigation, zoom, and text search.
-    - **Text/Code**: Syntax highlighting and text search.
-
-### 3. New Features (v1.1.2)
-- **File Info Toggle**:
-    - Click the **Info (i)** button in the top-right of the viewer to see detailed metadata (Size, Dates, Path).
-    - For viewable files, click **"View Content"** in the details view to return to the file.
-- **External Files**:
-    - Clicking an external file (e.g., Word, Excel) now shows a details page first.
-    - Click **"Open in System Application"** to launch the file.
-
-### 4. Search
-- **File Search**: Real-time filtering of the file list.
-- **Content Search**: Select "Content" mode to deeply search text within files (PDFs and Text-based files).
-
-### 5. Settings & About
-- Click the **About** button in the sidebar to view version information and developer details.
+### 📁 지원 파일 형식
+- **문서**: PDF, Markdown(.md), 텍스트(.txt), CSV
+- **이미지**: PNG, JPG, JPEG, GIF, WEBP
+- **코드**: Python, JavaScript, HTML, CSS, JSON, XML, YAML, C/C++, Java, Go, Rust, SQL 등 (구문 강조 지원)
+- **미디어**: MP4, WEBM (비디오/오디오)
+- **외부 파일**: MS Office(Word, Excel, PPT), 압축 파일(.zip, .7z, .rar) 등
+  - *외부 파일은 시스템 기본 프로그램으로 연결하여 열어볼 수 있습니다.*
 
 ---
-*SmartViewer v1.1.2 - 2026-01-16*
+
+## 2. 화면 구성 및 사용법
+
+### 🔍 사이드바 (Sidebar)
+사이드바를 통해 파일 시스템을 탐색하고 원하는 파일을 빠르게 찾을 수 있습니다. 상단의 **햄버거 메뉴(≡)** 버튼으로 사이드바를 접거나 펼 수 있습니다.
+
+#### 1) 라이브러리 (Libraries) 탭
+등록된 폴더들을 한곳에 모아 보여주는 뷰입니다.
+- **검색**: 파일명을 실시간으로 검색하거나, '내용 검색' 옵션을 켜서 문서 내부의 텍스트까지 심도 있게 검색할 수 있습니다.
+- **그룹화 및 정렬**: 날짜별, 파일 타입별로 그룹화하거나 이름/날짜/크기순으로 정렬할 수 있습니다.
+- **폴더 관리**: 설정(톱니바퀴) 아이콘을 눌러 라이브러리에 추가할 폴더를 자유롭게 관리하세요.
+
+#### 2) 탐색기 (Explorer) 탭 [v1.2.0 신기능]
+시스템 전체 드라이브와 네트워크 경로를 직접 탐색하는 뷰입니다.
+- **통합 주소창**: 상단의 주소창에서 현재 위치를 바로 확인하고 편집할 수 있습니다.
+- **빠른 추가 (+)**: 주소창에 직접 경로(예: `D:\Project` 또는 `\\NAS\Public`)를 입력한 후 **플러스(+)** 버튼을 누르면 해당 경로가 네트워크 위치로 즉시 등록됩니다. (팝업 없이 바로 추가되어 매우 빠릅니다.)
+- **홈 버튼 (🏠)**: 탐색 중 언제든지 홈 아이콘을 클릭하면 전체 드라이브 리스트가 있는 최상위 화면으로 즉시 돌아갑니다.
+
+---
+
+## 3. 스마트 필터 및 시각 효과 [v1.2.0 신기능]
+
+사이드바 하단에는 파일 타입별로 골라 볼 수 있는 **아이콘 필터**가 있습니다.
+
+- **직관적인 상태 표시**: 
+  - 선택되지 않은 필터는 **흑백(Grayscale)**으로 표시됩니다.
+  - 필터를 클릭하면 해당 고유의 **컬러(PDF는 빨강, 이미지는 보라 등)**로 밝게 켜지며, 테두리와 배경에 강조 색상이 나타나 어떤 필터가 활성화되었는지 한눈에 알 수 있습니다.
+- **구조 유지**: 필터를 적용해도 폴더 구조가 무너지지 않고 파일만 필터링되므로, 작업 맥락을 유지하며 탐색할 수 있습니다.
+
+---
+
+## 4. 파일 정보 및 뷰어 기능
+
+- **파일 정보 보기 (i)**: 뷰어 우측 상단의 **정보(i)** 버튼을 누르면 파일 크기, 생성/수정일, 경로 등 상세 메타데이터를 확인할 수 있습니다.
+- **외부 앱 실행**: Office 파일이나 압축 파일은 정보 페이지에서 **'시스템 앱에서 열기'** 버튼을 클릭하여 설치된 기본 프로그램으로 즉시 실행할 수 있습니다.
+- **캐시 자동 갱신**: 업데이트 후에도 프로그램 재시작 없이 새로고침만으로 최신 기능이 반영되도록 설계되었습니다.
+
+---
+
+## 5. 제작 및 고객 지원
+- **개발자**: SHIN YONG HUI
+- **버전**: v1.2.0 (2026-01-20)
+
+*SmartViewer를 이용해 주셔서 감사합니다. 더욱 편리한 문서 관리를 경험해 보세요!*

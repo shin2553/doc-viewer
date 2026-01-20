@@ -66,6 +66,145 @@
     list-style: none;
 }
 
+/* Smart Filter Chips */
+/* Smart Filter Chips */
+.filter-chip {
+    background: #252526;
+    border: 1px solid #3e3e42;
+    /* color: #aaa;   Removed to let icon colors take over */
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Default State: Grayscale & Dimmed */
+.filter-chip i {
+    filter: grayscale(100%) opacity(0.5);
+    transition: all 0.2s ease;
+    color: #ccc;
+    /* Fallback base color */
+}
+
+/* Hover State: Slight brighten, still grayscale or partial color? Let's go partial. */
+.filter-chip:hover {
+    background: #3e3e42;
+    border-color: #555;
+}
+
+.filter-chip:hover i {
+    filter: grayscale(0%) opacity(0.8);
+}
+
+/* Active State: Full Color & Highlighted Border */
+.filter-chip.active {
+    background: rgba(255, 255, 255, 0.1);
+    border-width: 1.5px;
+}
+
+.filter-chip.active i {
+    filter: grayscale(0%) opacity(1);
+    transform: scale(1.15);
+    /* Slightly bigger pop */
+}
+
+/* Specific Active Colors for Borders and Backgrounds */
+.filter-chip.active[data-filter="all"] {
+    border-color: #ccc;
+    background: rgba(204, 204, 204, 0.15);
+}
+
+.filter-chip.active[data-filter="pdf"] {
+    border-color: #e74c3c;
+    background: rgba(231, 76, 60, 0.15);
+}
+
+.filter-chip.active[data-filter="image"] {
+    border-color: #9b59b6;
+    background: rgba(155, 89, 182, 0.15);
+}
+
+.filter-chip.active[data-filter="text"] {
+    border-color: #3498db;
+    background: rgba(52, 152, 219, 0.15);
+}
+
+.filter-chip.active[data-filter="video"] {
+    border-color: #2980b9;
+    background: rgba(41, 128, 185, 0.15);
+}
+
+.filter-chip.active[data-filter="audio"] {
+    border-color: #f1c40f;
+    background: rgba(241, 196, 15, 0.15);
+}
+
+.filter-chip.active[data-filter="office"] {
+    border-color: #00a8e8;
+    background: rgba(0, 168, 232, 0.15);
+}
+
+.filter-chip.active[data-filter="archive"] {
+    border-color: #e67e22;
+    background: rgba(230, 126, 34, 0.15);
+}
+
+/* Specific Icon Colors (Only apply when active or hover reveals them) */
+.filter-chip i.fa-th-large {
+    color: #dcdcdc;
+}
+
+.filter-chip i.fa-file-pdf {
+    color: #e74c3c;
+}
+
+.filter-chip i.fa-file-image {
+    color: #9b59b6;
+}
+
+/* Image: Purple */
+.filter-chip i.fa-file-alt {
+    color: #3498db;
+}
+
+/* Text: Blue */
+.filter-chip i.fa-video {
+    color: #2980b9;
+}
+
+/* Video: Dark Blue */
+.filter-chip i.fa-music {
+    color: #f1c40f;
+}
+
+/* Audio: Yellow */
+.filter-chip i.fab.fa-windows {
+    color: #00a8e8;
+}
+
+/* Office: Windows Blue */
+.filter-chip i.fa-file-archive {
+    color: #e67e22;
+}
+
+/* Archive: Orange */
+
+/* Address Bar Focus */
+#explorer-address-input:focus {
+    color: #fff !important;
+}
+
+.filter-chips-container {
+    padding: 0 5px;
+    /* Slight alignment fix */
+}
+
 /* Tree Styling */
 .tree-root {
     list-style: none;
@@ -98,8 +237,8 @@
 }
 
 .tree-toggle {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -118,10 +257,15 @@
 }
 
 .tree-children {
-    padding-left: 20px;
-    /* Indent */
+    padding-left: 14px;
+    /* Reduced from 20px */
+    border-left: 1px solid #333;
+    /* Visual guide line */
+    margin-left: 7px;
+    /* Align with toggle center */
     display: none;
 }
+
 
 .tree-children.expanded {
     display: block;
@@ -131,7 +275,9 @@
 .file-list-item {
     display: flex;
     align-items: center;
-    padding: 6px 10px;
+    padding: 2px 5px 2px 24px;
+    /* Indent to match folder text */
+
     cursor: pointer;
     font-size: 0.9em;
     color: #ddd;
@@ -163,7 +309,7 @@ body {
 
 /* --- LEFT SIDEBAR (Explorer) --- */
 .sidebar-left {
-    width: 280px;
+    width: 320px;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
     display: flex;

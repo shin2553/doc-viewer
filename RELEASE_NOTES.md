@@ -1,37 +1,38 @@
-# Release Notes -# Smart Viewer Release Notes
+# SmartViewer 릴리즈 노트
+
+## v1.2.0 (2026-01-20)
+- **신규 기능**: **다이나믹 필터 아이콘**. 하단 아이콘에 '흑백 → 컬러' 전환 효과를 적용했습니다. 선택된 필터는 테두리와 배경에 강조 색상이 나타나 인지성을 높였습니다.
+- **신규 기능**: **탐색기 주소창 통합**. 이제 주소창에 경로를 입력하고 플러스(+) 버튼을 누르면 즉시 새로운 네트워크 위치로 추가됩니다.
+- **개선 사항**: **캐시 방지 적용**. 브라우저가 이전 코드를 기억하지 않고 항상 최신 코드를 불러오도록 개선하여 업데이트 반영이 빨라졌습니다.
+- **개선 사항**: **UX 폴리싱**. 경로 추가 시 방해가 되던 경고창(Alert)을 제거하고, 초기 화면의 주소를 공백으로 처리하여 깔끔하게 변경했습니다.
+- **개선 사항**: 탐색기 '상위 폴더' 버튼을 직관적인 **'홈(🏠)'** 아이콘으로 교체했습니다.
+- **버그 수정**: 중복된 이벤트 리스너로 인해 팝업창이 계속 뜨던 문제 및 구문 오류를 해결했습니다.
 
 ## v1.1.4 (2026-01-19)
-- **New Feature**: Added "Network Path" support in Explorer tab. You can now manually add network locations (e.g., `\\nas\share`) via the "+" button.
-- **Improvement**: Explorer tab now correctly handles UNC paths properly listing shares for server roots.
-- **Fix**: Resolved issue where "Libraries" tab would show absolute paths instead of relative structure.
-- **Fix**: Fixed visual bug where tab selection highlighting was incorrect.
-- **Revert**: Restored original "Libraries" tab appearance.
+- **신규 기능**: 탐색기 탭에 "네트워크 경로" 추가 기능을 도입했습니다.
+- **개선 사항**: UNC 경로(예: `\\nas\share`) 처리 로직을 개선하여 서버 루트 공유 폴더를 정상적으로 나열합니다.
+- **버그 수정**: 라이브러리 탭에서 절대 경로 대신 상대 경로 구조가 보이도록 수정했습니다.
+- **버그 수정**: 탭 선택 시 하이라이트가 잘못 표시되던 시각적 오류를 수정했습니다.
 
 ## v1.1.3 (2026-01-15)
-- **New Features**:
-    - **PPSX Support**: Added support for `.ppsx` (PowerPoint Slide Show) files. They can now be opened in the system default application.
-- **Improvements**:
-    - **UI Refinement**: The "Info" button is now hidden for external files (Office, Archives) to reduce clutter, as these files always show the details view initially.
+- **신규 기능**: `.ppsx` (PowerPoint 슬라이드 쇼) 파일 지원을 추가했습니다.
+- **개선 사항**: 가독성을 위해 외부 파일(Office, 압축파일) 조회 시 불필요한 정보 버튼을 숨겼습니다.
 
 ## v1.1.2 (2026-01-16)
-- **New Features**:
-    - **File Info Toggle**: Added an "Info" button (i icon) to the viewer to toggle detailed file information for any file.
-    - **Internal File Details**: You can now view metadata (Size, Created/Modified Date, Path) for internally viewable files (PDF, Text included) and switch back to content view with a "View Content" button.
-    - **Enhanced External File Support**: External files (Office, Archives) now display a details page with an "Open in System Application" button, preventing accidental opening dialogs.
-    - **Created Date**: Added "Created Date" to the file details view.
-    - **Manage Folders**: (Previous update recap) Added interface to add/remove search paths.
+- **신규 기능**: **파일 정보 토글**. 뷰어 우측 상단에 '정보(i)' 버튼을 추가하여 파일 크기, 경로, 생성/수정일 등을 확인할 수 있습니다.
+- **신규 기능**: 외부 파일 전용 상세 페이지 도입. Word, Excel 등의 파일을 열기 전 메타데이터를 먼저 확인하고 실행할 수 있습니다.
+- **개선 사항**: 상세 정보 뷰에 '생성 일자' 속성을 추가했습니다.
 
 ## v1.1.1 (2026-01-16)
-- **Fixes**:
-    - Fixed "Unexpected token '<'" error when opening text files.
-    - Improved internal file path handling.
+- **버그 수정**: 텍스트 파일 오픈 시 발생하던 "Unexpected token '<'" 오류를 해결했습니다.
+- **버그 수정**: 내부 파일 경로 처리 로직을 안정화했습니다.
 
 ## v1.0.0 (2026-01-15)
-- **Initial Release**
-- Features:
-    - PDF, Image, Text, CSV Viewer
-    - Adobe PDF Embed API integration
-    - Dark Mode UI
-    - System Tray Icon
-    - Single Instance Check
-    - About Popup
+- **최초 릴리즈**
+- 주요 기능:
+    - PDF, 이미지, 텍스트, CSV 뷰어 통합
+    - Adobe PDF Embed API 연동
+    - 다크 모드 UI
+    - 시스템 트레이 아이콘 및 백그라운드 실행
+    - 중복 실행 방지 기능
+    - 제작 정보(About) 팝업

@@ -13,8 +13,11 @@ const app = {
         video: ['mp4', 'webm', 'mkv', 'avi', 'mov'],
         image: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
         audio: ['mp3', 'wav', 'ogg', 'flac'],
+        office: ['doc', 'docx', 'docm', 'xls', 'xlsx', 'xlsm', 'ppt', 'pptx', 'pptm', 'pps', 'ppsx'],
+        archive: ['zip', 'rar', '7z', 'tar', 'gz', 'alz', 'egg', 'iso', 'img', 'tgz'],
         pdf: ['pdf'],
-        text: ['txt', 'md', 'py', 'js', 'html', 'css', 'json', 'xml', 'log', 'csv', 'yaml', 'yml', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'dockerfile', 'sh', 'bat']
+        text: ['txt', 'md', 'py', 'js', 'html', 'css', 'json', 'xml', 'log', 'csv', 'yaml', 'yml', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'dockerfile', 'sh', 'bat', 'url']
+
     },
 
     state: { groupBy: 'none', sortBy: 'name', typeFilterLib: 'all', typeFilterExp: 'all', activeGroupFilter: null, searchMode: 'name', explorerPath: '', expandedPaths: new Set() },
@@ -46,11 +49,13 @@ const app = {
             fileList: document.getElementById('file-list'),
 
             // Network Management
+            btnAddNetwork: document.getElementById('add-network-path-btn'),
             btnManageNetwork: document.getElementById('manage-network-btn'),
             manageNetworkModal: document.getElementById('manage-network-modal'),
             manageNetworkCloseIcon: document.getElementById('manage-network-close-icon'),
             manageNetworkBtnClose: document.getElementById('manage-network-btn-close'),
             networkListContainer: document.getElementById('network-list-container'),
+
 
             fileSearch: document.getElementById('file-search'),
             groupBy: document.getElementById('group-by'),
@@ -176,18 +181,18 @@ const app = {
             }
         });
 
-        // Search Mode Toggle
-        document.querySelectorAll('input[name="search-mode"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.state.searchMode = e.target.value;
+        // Search Mode Toggle (New Checkbox)
+        const searchModeToggle = document.getElementById('search-content-toggle');
+        if (searchModeToggle) {
+            searchModeToggle.addEventListener('change', (e) => {
+                this.state.searchMode = e.target.checked ? 'content' : 'name';
                 if (this.dom.fileSearch.value) {
                     if (this.state.searchMode === 'content') this.handleContentSearch(this.dom.fileSearch.value);
                     else this.renderFileList();
-                } else {
-                    this.renderFileList();
                 }
             });
-        });
+        }
+
 
         this.dom.groupBy.addEventListener('change', (e) => {
             this.state.groupBy = e.target.value;
@@ -199,19 +204,78 @@ const app = {
             this.renderFileList();
         });
 
-        this.dom.clearFilterBtn.addEventListener('click', () => {
-            this.dom.fileSearch.value = "";
-            this.renderFileList();
-        });
+        if (this.dom.clearFilterBtn) {
+            this.dom.clearFilterBtn.addEventListener('click', () => {
+                this.dom.fileSearch.value = "";
+                this.renderFileList();
+            });
+        }
+
 
         // Libraries Filter
         if (this.dom.typeFilterLib) this.dom.typeFilterLib.onchange = () => { this.state.typeFilterLib = this.dom.typeFilterLib.value; this.renderFileList(); };
 
         // Explorer Filter
-        if (this.dom.typeFilterExp) this.dom.typeFilterExp.onchange = () => { this.state.typeFilterExp = this.dom.typeFilterExp.value; this.renderExplorerRefresh(); };
+        // Explorer Filter (Old dropdown removed, now handled by chips below)
+
+        // Filter Chips (Libraries)
+        document.querySelectorAll('.filter-chip:not(.filter-chip-exp)').forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                const btn = e.currentTarget;
+                const filter = btn.dataset.filter;
+
+                // Update Active State (Libraries Only)
+                document.querySelectorAll('.filter-chip:not(.filter-chip-exp)').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+
+                this.state.typeFilterLib = filter;
+                this.renderFileList();
+            });
+        });
+
+        // Filter Chips (Explorer)
+        document.querySelectorAll('.filter-chip-exp').forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                const btn = e.currentTarget;
+                const filter = btn.dataset.filter;
+
+                // Update Active State (Explorer Only)
+                document.querySelectorAll('.filter-chip-exp').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+
+                this.state.typeFilterExp = filter;
+                // Client-side Visibility Toggle (No Reload)
+                this.applyExplorerFilter();
+            });
+        });
+
+        // Explorer Address Bar & Nav
+        const addrInput = document.getElementById('explorer-address-input');
+        const goBtn = document.getElementById('exp-go-btn');
+        const homeBtn = document.getElementById('exp-home-btn');
+
+        if (addrInput) {
+            addrInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    this.loadExplorerPath(addrInput.value);
+                }
+            });
+        }
+        if (goBtn) {
+            goBtn.onclick = () => this.loadExplorerPath(addrInput.value);
+        }
+        if (homeBtn) {
+            homeBtn.onclick = () => {
+                // Reset View: Clear expanded paths and go to Root
+                this.state.expandedPaths.clear();
+                this.loadExplorerDrives();
+                if (addrInput) addrInput.value = "";
+            };
+        }
 
         // Image Controls
         this.dom.btnZoomIn.addEventListener('click', () => this.zoomImage(0.2));
+
         this.dom.btnZoomOut.addEventListener('click', () => this.zoomImage(-0.2));
         this.dom.btnZoomReset.addEventListener('click', () => this.resetImage());
 
@@ -299,30 +363,7 @@ const app = {
             });
         }
 
-        // Add Network Path Button
-        const btnAddNet = document.getElementById('add-network-path-btn');
-        if (btnAddNet) {
-            btnAddNet.addEventListener('click', async () => {
-                const path = prompt("Enter Network Path (e.g. \\\\server\\share):");
-                if (path) {
-                    try {
-                        const res = await fetch('/api/add_network_path', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ path: path })
-                        });
-                        const data = await res.json();
-                        if (data.status === 'success') {
-                            this.loadExplorerDrives(); // Refresh
-                        } else {
-                            alert('Error: ' + (data.message || 'Unknown error'));
-                        }
-                    } catch (e) {
-                        alert('Failed to add path: ' + e.message);
-                    }
-                }
-            });
-        }
+
 
         this.bindManageNetworkLogic();
         this.bindManagePathsLogic();
@@ -438,6 +479,10 @@ const app = {
 
     async loadExplorerDrives() {
         const root = document.getElementById('explorer-list');
+        const addr = document.getElementById('explorer-address-input');
+        if (addr) addr.value = "";
+        this.state.explorerPath = ""; // Reset path
+
         if (!root) return;
 
         root.innerHTML = '<li style="padding:10px; color:#aaa;">Loading Drives...</li>';
@@ -453,19 +498,41 @@ const app = {
         }
     },
 
+    async loadExplorerPath(path) {
+        if (!path || path === "This PC") {
+            this.loadExplorerDrives();
+            return;
+        }
+
+        const root = document.getElementById('explorer-list');
+        const addr = document.getElementById('explorer-address-input');
+
+        this.state.explorerPath = path;
+        if (addr) addr.value = path;
+
+        if (root) root.innerHTML = '<li style="padding:10px; color:#aaa;">Loading...</li>';
+
+        try {
+            const res = await fetch(`/api/explore?path=${encodeURIComponent(path)}`);
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Unknown Error");
+            }
+            const items = await res.json();
+            this.renderLazyTreeItems(items, root);
+        } catch (e) {
+            if (root) root.innerHTML = `<li style="padding:10px; color:red;">${e.message}</li>`;
+        }
+    },
+
+
     renderExplorerRefresh() {
         if (this.dom.tabExplorer.classList.contains('active')) {
             this.loadExplorerDrives();
         }
     },
 
-    fileExtensions: {
-        video: ['mp4', 'webm', 'mkv', 'avi', 'mov'],
-        image: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
-        audio: ['mp3', 'wav', 'ogg', 'flac'],
-        pdf: ['pdf'],
-        text: ['txt', 'md', 'py', 'js', 'html', 'css', 'json', 'xml', 'log', 'csv', 'yaml', 'yml', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'dockerfile', 'sh', 'bat']
-    },
+
 
     // Generic Lazy Tree Renderer
     renderLazyTreeItems(items, containerUl) {
@@ -475,24 +542,8 @@ const app = {
             return;
         }
 
-        // Apply Filter (Explorer Mode)
-        // Use typeFilterExp for Explorer
-        if (this.state.typeFilterExp !== 'all') {
-            const tf = this.state.typeFilterExp;
-            items = items.filter(item => {
-                // Always keep directories/drives
-                const isDrive = typeof item === 'string';
-                if (isDrive) return true;
-                if (item.is_dir) return true;
-
-                // Filter files
-                const ext = item.name.split('.').pop().toLowerCase();
-                if (this.fileExtensions[tf]) {
-                    return this.fileExtensions[tf].includes(ext);
-                }
-                return true;
-            });
-        }
+        // NO LONGER PRE-FILTERING here. We render all, then hide via CSS/JS.
+        // This ensures folder structure remains intact when changing filters.
 
         // Sort: Folders/Drives first, then Files
         items.sort((a, b) => {
@@ -515,6 +566,19 @@ const app = {
             li.className = isDir ? 'tree-node' : 'file-list-item'; // Reuse existing styles
             // Slight style adjustment for unification
             if (!isDir) li.style.paddingLeft = "24px";
+
+            // Determine Category for Filtering
+            let category = 'other';
+            if (!isDir) {
+                const ext = name.split('.').pop().toLowerCase();
+                for (const [cat, exts] of Object.entries(this.fileExtensions)) {
+                    if (exts.includes(ext)) {
+                        category = cat;
+                        break;
+                    }
+                }
+            }
+            li.dataset.category = category; // Set data attribute
 
             // Content Container
             const contentDiv = document.createElement('div');
@@ -559,22 +623,46 @@ const app = {
                 // Toggle Event
                 const toggleHandler = (e) => {
                     if (e) e.stopPropagation();
+
+                    // Update Address Bar (Visual only, no navigation)
+                    const addr = document.getElementById('explorer-address-input');
+                    if (addr) addr.value = path;
+
                     const isExpanded = childrenUl.classList.contains('expanded');
                     if (isExpanded) {
                         childrenUl.classList.remove('expanded');
                         toggle.innerHTML = '<i class="fas fa-caret-right"></i>';
+                        this.state.expandedPaths.delete(path); // Remove from state
                     } else {
                         childrenUl.classList.add('expanded');
                         toggle.innerHTML = '<i class="fas fa-caret-down"></i>';
-                        // Lazy Load if empty
+                        this.state.expandedPaths.add(path); // Add to state
+                        // Lazy Load if empty (or always check if we need to reload content?)
+                        // For now, if expanded, ensure loaded
                         if (!childrenUl.hasChildNodes()) {
                             this.loadLazyTreeLevel(path, childrenUl);
                         }
                     }
                 };
 
-                // Allow clicking anywhere on the row to toggle
+                // Restore Expanded State
+                if (this.state.expandedPaths.has(path)) {
+                    childrenUl.classList.add('expanded');
+                    toggle.innerHTML = '<i class="fas fa-caret-down"></i>';
+                    // Trigger load immediately to restore view
+                    this.loadLazyTreeLevel(path, childrenUl);
+                }
+                // Allow clicking anywhere on the row to toggle (Single Click)
+                // Double Click -> Enter Directory (Update Address Bar)
                 li.onclick = toggleHandler;
+
+                li.ondblclick = (e) => {
+                    e.stopPropagation();
+                    // If we are in Explorer tab, update the address bar and reload root
+                    if (this.dom.tabExplorer.classList.contains('active')) {
+                        this.loadExplorerPath(path);
+                    }
+                };
 
                 li.appendChild(contentDiv);
                 li.appendChild(childrenUl);
@@ -593,15 +681,43 @@ const app = {
 
                 li.appendChild(contentDiv);
             }
-
             containerUl.appendChild(li);
+        });
+
+        // Apply Filter immediately after render
+        this.applyExplorerFilter();
+    },
+
+    applyExplorerFilter() {
+        const filter = this.state.typeFilterExp;
+        // Target specifically the FILE items (exclude folders which are .tree-node)
+        const fileItems = document.querySelectorAll('#explorer-list .file-list-item[data-category]');
+
+        fileItems.forEach(item => {
+            if (filter === 'all') {
+                item.style.display = '';
+            } else {
+                const cat = item.dataset.category;
+                if (cat === filter) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            }
         });
     },
 
     async loadLazyTreeLevel(path, containerUl) {
+        // Update explorer path if we are diving in? 
+        // Actually, if we expand a folder in tree, we might NOT want to change the top address bar unless we "enter" it.
+        // But Explorer usually syncs.
+        // For now, let's keep tree expansion separate from "Entering" a directory.
+        // BUT, if user double clicks a folder?
+
         containerUl.innerHTML = '<li style="padding-left:20px; color:#777;">Loading...</li>';
         try {
             const res = await fetch(`/api/explore?path=${encodeURIComponent(path)}`);
+
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.error || "Unknown Error");
@@ -628,10 +744,27 @@ const app = {
             const res = await fetch('/api/files?t=' + new Date().getTime());
             this.files = await res.json();
             this.renderFileList();
+
+            // Update Stats
+            this.updateLibraryStats();
         } catch (e) {
             console.error("Failed to load files:", e);
         }
     },
+
+    updateLibraryStats() {
+        const statsEl = document.getElementById('library-stats');
+        if (!statsEl || !this.files) return;
+
+        const totalFiles = this.files.length;
+        const totalSize = this.files.reduce((acc, f) => acc + (f.size || 0), 0);
+
+        // Count folders (unique roots)
+        const roots = new Set(this.files.map(f => f.root)).size;
+
+        statsEl.innerHTML = `<i class="fas fa-database"></i> <b>${totalFiles}</b> files <span style="color:#888">|</span> <i class="fas fa-hdd"></i> ${this.formatSize(totalSize)} <span style="color:#888">|</span> <i class="fas fa-folder-open"></i> ${roots} sources`;
+    },
+
 
     getFileIcon(type) {
         const map = {
@@ -644,7 +777,8 @@ const app = {
             'java': 'fab fa-java', 'go': 'fab fa-google', 'rs': 'fab fa-rust', 'dockerfile': 'fab fa-docker',
             'doc': 'fas fa-file-word', 'docx': 'fas fa-file-word',
             'xls': 'fas fa-file-excel', 'xlsx': 'fas fa-file-excel',
-            'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint', 'ppsx': 'fas fa-file-powerpoint'
+            'ppt': 'fas fa-file-powerpoint', 'pptx': 'fas fa-file-powerpoint', 'ppsx': 'fas fa-file-powerpoint',
+            'url': 'fas fa-link'
         };
         return map[type ? type.toLowerCase() : ''] || 'fas fa-file';
     },
@@ -672,7 +806,7 @@ const app = {
                 if (this.fileExtensions[tf]) {
                     return this.fileExtensions[tf].includes(ext);
                 }
-                return true;
+                return false;
             });
         }
 
@@ -728,7 +862,7 @@ const app = {
         return root;
     },
 
-    renderTree(node, container) {
+    renderTree(node, container, parentPath = "") {
         const keys = Object.keys(node).sort((a, b) => {
             const itemA = node[a];
             const itemB = node[b];
@@ -761,22 +895,36 @@ const app = {
                 div.innerHTML = `<i class="${iconClass} tree-icon"></i><span>${key}</span>`;
                 li.appendChild(div);
             } else {
+                // Folder Logic with State Persistence
+                const fullPath = parentPath ? parentPath + '/' + key : key;
+                const isExpanded = this.state.expandedPaths.has(fullPath);
+
                 const div = document.createElement('div');
-                div.className = 'tree-item folder-row';
-                div.innerHTML = `<span class="tree-toggle"><i class="fas fa-chevron-right"></i></span>
+                div.className = `tree-item folder-row ${isExpanded ? 'expanded' : ''}`;
+
+                const toggleIcon = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-right';
+                div.innerHTML = `<span class="tree-toggle"><i class="${toggleIcon}"></i></span>
                                  <i class="fas fa-folder tree-icon"></i><span>${key}</span>`;
+
                 const ul = document.createElement('ul');
-                ul.className = 'tree-children';
+                ul.className = `tree-children ${isExpanded ? 'open' : ''}`;
+
                 div.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    ul.classList.toggle('open');
+                    const isOpen = ul.classList.toggle('open');
                     div.classList.toggle('expanded');
+
+                    // Update State
+                    if (isOpen) this.state.expandedPaths.add(fullPath);
+                    else this.state.expandedPaths.delete(fullPath);
+
                     const icon = div.querySelector('.tree-toggle i');
-                    icon.className = ul.classList.contains('open') ? 'fas fa-chevron-down' : 'fas fa-chevron-right';
+                    icon.className = isOpen ? 'fas fa-chevron-down' : 'fas fa-chevron-right';
                 });
+
                 li.appendChild(div);
                 li.appendChild(ul);
-                this.renderTree(item.__children, ul);
+                this.renderTree(item.__children, ul, fullPath); // Recurse with path
             }
             container.appendChild(li);
         });
@@ -961,7 +1109,7 @@ const app = {
         this.hideAllViewers();
 
         const safeUrl = this.getSafeUrl(file.path);
-        const textExtensions = ['txt', 'py', 'js', 'md', 'html', 'css', 'json', 'log', 'xml', 'yaml', 'yml', 'ini', 'conf', 'sh', 'bat', 'c', 'cpp', 'h', 'hpp', 'java', 'go', 'rs', 'sql', 'gradle', 'properties', 'dockerfile', 'gitignore'];
+        const textExtensions = ['txt', 'py', 'js', 'md', 'html', 'css', 'json', 'log', 'xml', 'yaml', 'yml', 'ini', 'conf', 'sh', 'bat', 'c', 'cpp', 'h', 'hpp', 'java', 'go', 'rs', 'sql', 'gradle', 'properties', 'dockerfile', 'gitignore', 'url'];
 
         if (file.type === 'pdf') {
             this.loadPDF(file);
@@ -1056,6 +1204,53 @@ const app = {
 
     renderTextContent(file, text) {
         const ext = file.type.toLowerCase();
+
+        // URL File Rendering
+        if (ext === 'url') {
+            const match = text.match(/^URL=(.+)$/m);
+            const url = match ? match[1].trim() : null;
+
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.height = '100%';
+
+            if (url) {
+                const btnContainer = document.createElement('div');
+                btnContainer.style.padding = '10px';
+                btnContainer.style.background = '#252526';
+                btnContainer.style.borderBottom = '1px solid #3e3e42';
+
+                const btn = document.createElement('button');
+                btn.className = 'header-btn';
+                btn.style.width = 'auto';
+                btn.style.padding = '6px 12px';
+                btn.style.background = '#007acc';
+                btn.style.color = 'white';
+                btn.innerHTML = `<i class="fas fa-external-link-alt"></i> Open Link: ${url}`;
+                btn.onclick = () => window.open(url, '_blank');
+
+                btnContainer.appendChild(btn);
+                container.appendChild(btnContainer);
+            }
+
+            const textDiv = document.createElement('div');
+            textDiv.textContent = text;
+            textDiv.style.whiteSpace = "pre-wrap";
+            textDiv.style.flex = "1";
+            textDiv.style.overflow = "auto";
+            textDiv.style.padding = "10px";
+            textDiv.style.fontFamily = "monospace";
+
+            container.appendChild(textDiv);
+
+            this.dom.textViewer.innerHTML = '';
+            this.dom.textViewer.appendChild(container);
+
+            this.dom.textViewer.style.fontSize = this.textState.fontSize + 'px';
+            this.dom.fontDisplay.innerText = this.textState.fontSize + 'px';
+            return;
+        }
 
         // Markdown Rendering
         if (ext === 'md') {
@@ -1787,6 +1982,40 @@ const app = {
     },
 
     bindManageNetworkLogic() {
+        // Add Network Path from Address Bar
+        if (this.dom.btnAddNetwork) {
+            this.dom.btnAddNetwork.addEventListener('click', () => {
+                const addrInput = document.getElementById('explorer-address-input');
+                const path = addrInput ? addrInput.value.trim() : "";
+
+                if (!path) {
+                    // Fail silently as per user request
+                    return;
+                }
+
+                // Call API to add path
+                fetch('/api/add_network_path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: path })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Success: Just refresh logic, no alert
+                            this.loadExplorerDrives();
+                        } else if (data.status === 'exists') {
+                            alert("This path is already in your network locations.");
+                        } else {
+                            alert("Error adding path: " + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        alert("Failed to add path: " + err);
+                    });
+            });
+        }
+
         if (this.dom.btnManageNetwork) {
             this.dom.btnManageNetwork.addEventListener('click', () => {
                 this.openManageNetworkModal();
