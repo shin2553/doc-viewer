@@ -85,7 +85,8 @@
 }
 
 /* Default State: Grayscale & Dimmed */
-.filter-chip i {
+.filter-chip i,
+.filter-chip svg {
     filter: grayscale(100%) opacity(0.5);
     transition: all 0.2s ease;
     color: #ccc;
@@ -98,7 +99,8 @@
     border-color: #555;
 }
 
-.filter-chip:hover i {
+.filter-chip:hover i,
+.filter-chip:hover svg {
     filter: grayscale(0%) opacity(0.8);
 }
 
@@ -108,7 +110,8 @@
     border-width: 1.5px;
 }
 
-.filter-chip.active i {
+.filter-chip.active i,
+.filter-chip.active svg {
     filter: grayscale(0%) opacity(1);
     transform: scale(1.15);
     /* Slightly bigger pop */
@@ -146,8 +149,8 @@
 }
 
 .filter-chip.active[data-filter="office"] {
-    border-color: #00a8e8;
-    background: rgba(0, 168, 232, 0.15);
+    border-color: #666;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .filter-chip.active[data-filter="archive"] {
